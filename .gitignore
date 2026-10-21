@@ -218,3 +218,26 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Secrets and local environment
+.env.*
+*.pem
+
+# Databricks
+.databricks/
+*.dbc
+
+# Local overrides and scratch space
+config/*.local.yaml
+scratch/
+
+# Local Spark (created by running pytest + chispa locally)
+spark-warehouse/
+metastore_db/
+derby.log
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
