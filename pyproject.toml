@@ -1,0 +1,33 @@
+[project]
+name = "formula_1"
+version = "0.0.1"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "requests",
+]
+
+[project.optional-dependencies]
+producer = [
+    "azure-eventhub",
+    "azure-identity",
+    "azure-keyvault-secrets",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+    "databricks-dlt",
+    "databricks-connect>=16.4,<16.5",
+    "ipykernel",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/formula_1"]
+
+[tool.ruff]
+line-length = 120
