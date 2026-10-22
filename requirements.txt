@@ -1,0 +1,6 @@
+# Runtime dependencies of the local producer
+requests
+pyyaml
+azure-eventhub
+azure-identity
+azure-keyvault-secrets
