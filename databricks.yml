@@ -34,6 +34,12 @@ variables:
   jolpica_seasons:
     description: Comma-separated seasons to ingest
     default: "2023,2024,2025,2026"
+  jolpica_min_interval_sec:
+    description: Minimum seconds between Jolpica requests
+    default: "1.0"
+  jolpica_max_requests_per_hour:
+    description: Hourly request budget (Jolpica allows 500)
+    default: "450"
 
 targets:
   dev:
