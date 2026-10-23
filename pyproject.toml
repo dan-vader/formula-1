@@ -3,14 +3,15 @@ name = "formula_1"
 version = "0.0.1"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "requests",
+    "requests>=2.31,<3",
+    "tenacity>=8.2,<10",
 ]
 
 [project.optional-dependencies]
 producer = [
-    "azure-eventhub",
-    "azure-identity",
-    "azure-keyvault-secrets",
+    "azure-eventhub>=5.11,<6",
+    "azure-identity>=1.15,<2",
+    "azure-keyvault-secrets>=4.8,<5",
 ]
 
 [dependency-groups]
