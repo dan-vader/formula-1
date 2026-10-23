@@ -13,7 +13,7 @@ resources:
 
       environment:
         dependencies:
-          - --editable ${workspace.file_path}
+          - ../dist/*.whl
 
       configuration:
         formula_1.bronze_schema: ${var.bronze_schema}

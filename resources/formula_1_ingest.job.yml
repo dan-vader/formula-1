@@ -54,4 +54,4 @@ resources:
           spec:
             environment_version: "5"
             dependencies:
-              - --editable ${workspace.file_path}
+              - ../dist/*.whl
