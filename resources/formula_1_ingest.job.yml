@@ -18,6 +18,14 @@ resources:
           default: ${var.jolpica_min_interval_sec}
         - name: max_requests_per_hour
           default: ${var.jolpica_max_requests_per_hour}
+        - name: openf1_years
+          default: ${var.openf1_years}
+        - name: openf1_session_names
+          default: ${var.openf1_session_names}
+        - name: openf1_min_interval_sec
+          default: ${var.openf1_min_interval_sec}
+        - name: openf1_max_requests_per_hour
+          default: ${var.openf1_max_requests_per_hour}
 
       tasks:
         - task_key: fetch_jolpica
@@ -40,9 +48,33 @@ resources:
               - "{{job.parameters.min_interval_sec}}"
               - --max-requests-per-hour
               - "{{job.parameters.max_requests_per_hour}}"
+        - task_key: fetch_openf1
+          environment_key: default
+          spark_python_task:
+            python_file: ../src/ingestion/fetch_openf1.py
+            parameters:
+              - --catalog
+              - "{{job.parameters.catalog}}"
+              - --bronze-schema
+              - "{{job.parameters.bronze_schema}}"
+              - --volume
+              - "{{job.parameters.volume}}"
+              - --secret-scope
+              - "{{job.parameters.secret_scope}}"
+              - --contact-email-key
+              - "{{job.parameters.contact_email_key}}"
+              - --years
+              - "{{job.parameters.openf1_years}}"
+              - --session-names
+              - "{{job.parameters.openf1_session_names}}"
+              - --min-interval-sec
+              - "{{job.parameters.openf1_min_interval_sec}}"
+              - --max-requests-per-hour
+              - "{{job.parameters.openf1_max_requests_per_hour}}"
         - task_key: refresh_bronze
           depends_on:
             - task_key: fetch_jolpica
+            - task_key: fetch_openf1
           pipeline_task:
             pipeline_id: ${resources.pipelines.formula_1_bronze.id}
 

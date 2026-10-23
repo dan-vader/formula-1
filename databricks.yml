@@ -48,6 +48,18 @@ variables:
   jolpica_max_requests_per_hour:
     description: Hourly request budget (Jolpica allows 500)
     default: "450"
+  openf1_years:
+    description: Comma-separated years to ingest from OpenF1
+    default: "2023,2024,2025,2026"
+  openf1_session_names:
+    description: Comma-separated session names to ingest per-session endpoints for
+    default: "Race,Sprint"
+  openf1_min_interval_sec:
+    description: Minimum seconds between OpenF1 requests (free tier allows 30 per minute)
+    default: "2.5"
+  openf1_max_requests_per_hour:
+    description: Hourly request budget for OpenF1
+    default: "1400"
 
 targets:
   dev:
