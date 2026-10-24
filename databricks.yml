@@ -6,9 +6,15 @@ bundle:
 include:
   - resources/*.yml
 
-sync:
-  exclude:
-    - producer/**
+# sync:
+#   exclude:
+#     - producer/**
+
+artifacts:
+  formula_1_wheel:
+    type: whl
+    build: uv build --wheel
+    path: .
 
 variables:
   catalog:
@@ -22,18 +28,26 @@ variables:
   gold_schema:
     description: Schema of the gold layer
     default: formula_1_gold
-  volume:
-    description: Managed volume in the bronze schema for landing files
-    default: raw
+  landing_path:
+    description: Volume path for raw landing files, shared by the pipeline and the fetch tasks
   secret_scope:
     description: Secret scope with the project secrets
-    default: default
+    default: formula-1
   contact_email_key:
     description: Secret key with the contact address for the User-Agent header
     default: formula-1-contact-email
   jolpica_seasons:
     description: Comma-separated seasons to ingest
     default: "2023,2024,2025,2026"
+  jolpica_page_limit:
+    description: Page size requested from the Jolpica API (the server may cap it)
+    default: "100"
+  jolpica_min_interval_sec:
+    description: Minimum seconds between Jolpica requests
+    default: "1.0"
+  jolpica_max_requests_per_hour:
+    description: Hourly request budget (Jolpica allows 500)
+    default: "450"
 
 targets:
   dev:
@@ -43,3 +57,4 @@ targets:
       host: https://adb-7405613488297663.3.azuredatabricks.net
     variables:
       catalog: dbr_dev_ua5816bd
+      landing_path: /Volumes/dbr_dev_ua5816bd/formula_1_bronze/raw

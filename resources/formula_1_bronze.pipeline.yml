@@ -1,0 +1,19 @@
+resources:
+  pipelines:
+    formula_1_bronze:
+      name: formula_1_bronze
+      catalog: ${var.catalog}
+      schema: ${var.bronze_schema}
+      serverless: true
+      root_path: "../src/formula_1_bronze"
+
+      libraries:
+        - glob:
+            include: ../src/formula_1_bronze/transformations/**
+
+      environment:
+        dependencies:
+          - ../dist/*.whl
+
+      configuration:
+        formula_1.landing_path: ${var.landing_path}
