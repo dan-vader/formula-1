@@ -1,0 +1,45 @@
+# Declarative Automation Bundle definition for formula_1.
+bundle:
+  name: formula_1
+  uuid: a77e5ca4-9ec8-46dd-970e-8e396409f4d4
+
+include:
+  - resources/*.yml
+
+sync:
+  exclude:
+    - producer/**
+
+variables:
+  catalog:
+    description: The catalog to use
+  bronze_schema:
+    description: Schema of the bronze layer
+    default: formula_1_bronze
+  silver_schema:
+    description: Schema of the silver layer
+    default: formula_1_silver
+  gold_schema:
+    description: Schema of the gold layer
+    default: formula_1_gold
+  volume:
+    description: Managed volume in the bronze schema for landing files
+    default: raw
+  secret_scope:
+    description: Secret scope with the project secrets
+    default: default
+  contact_email_key:
+    description: Secret key with the contact address for the User-Agent header
+    default: formula-1-contact-email
+  jolpica_seasons:
+    description: Comma-separated seasons to ingest
+    default: "2023,2024,2025,2026"
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://adb-7405613488297663.3.azuredatabricks.net
+    variables:
+      catalog: dbr_dev_ua5816bd
