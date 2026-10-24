@@ -17,3 +17,4 @@ resources:
 
       configuration:
         formula_1.landing_path: ${var.landing_path}
+        formula_1.reference_path: ${workspace.file_path}/data/reference
