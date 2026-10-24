@@ -9,7 +9,6 @@ from formula_1.logging_utils import get_logger
 log = get_logger("formula_1.jolpica")
 
 BASE_URL = "https://api.jolpi.ca/ergast/f1"
-PAGE_LIMIT = 100
 LOADS_FOLDER = "_loads"
 
 
@@ -93,10 +92,10 @@ def _write_json(path, payload):
         json.dump(payload, f)
 
 
-def _save_pages(client, root, load_id, resource, season, round_label):
+def _save_pages(client, root, load_id, resource, season, round_label, page_limit):
     url = build_url(resource, season=season, round=round_label)
     payloads = []
-    for offset, payload in iter_pages(client, url, PAGE_LIMIT):
+    for offset, payload in iter_pages(client, url, page_limit):
         if int(payload["MRData"]["total"]) == 0:
             break
         _write_json(landing_file(root, resource, load_id, season, round_label, offset), payload)
@@ -105,25 +104,25 @@ def _save_pages(client, root, load_id, resource, season, round_label):
     return payloads
 
 
-def fetch_snapshot(client, root, load_id, seasons, today=None):
+def fetch_snapshot(client, root, load_id, seasons, page_limit, today=None):
     for folder in landing_tables():  # Auto Loader needs every folder, even an empty one
         os.makedirs(f"{root}/jolpica/{folder}", exist_ok=True)
 
     for name, resource in RESOURCES.items():
         if resource.scope is Scope.GLOBAL:
-            _save_pages(client, root, load_id, name, "all", "all")
+            _save_pages(client, root, load_id, name, "all", "all", page_limit)
 
     for season in seasons:
         schedule_pages = []
         for name, resource in RESOURCES.items():
             if resource.scope is Scope.SEASON:
-                pages = _save_pages(client, root, load_id, name, season, "all")
+                pages = _save_pages(client, root, load_id, name, season, "all", page_limit)
                 if name == "schedule":
                     schedule_pages = pages
         for rnd in rounds_from_schedule(schedule_pages, today):
             for name, resource in RESOURCES.items():
                 if resource.scope is Scope.ROUND:
-                    _save_pages(client, root, load_id, name, season, rnd)
+                    _save_pages(client, root, load_id, name, season, rnd, page_limit)
 
 
 def write_marker(root, load_id, seasons, started_at):

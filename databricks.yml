@@ -28,9 +28,8 @@ variables:
   gold_schema:
     description: Schema of the gold layer
     default: formula_1_gold
-  volume:
-    description: Managed volume in the bronze schema for landing files
-    default: raw
+  landing_path:
+    description: Volume path for raw landing files, shared by the pipeline and the fetch tasks
   secret_scope:
     description: Secret scope with the project secrets
     default: formula-1
@@ -40,6 +39,9 @@ variables:
   jolpica_seasons:
     description: Comma-separated seasons to ingest
     default: "2023,2024,2025,2026"
+  jolpica_page_limit:
+    description: Page size requested from the Jolpica API (the server may cap it)
+    default: "100"
   jolpica_min_interval_sec:
     description: Minimum seconds between Jolpica requests
     default: "1.0"
@@ -55,3 +57,4 @@ targets:
       host: https://adb-7405613488297663.3.azuredatabricks.net
     variables:
       catalog: dbr_dev_ua5816bd
+      landing_path: /Volumes/dbr_dev_ua5816bd/formula_1_bronze/raw

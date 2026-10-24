@@ -1,16 +1,17 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-from formula_1 import jolpica
+from formula_1.bronze import jolpica
 
-BRONZE_SCHEMA = spark.conf.get("formula_1.bronze_schema")
 LANDING_PATH = spark.conf.get("formula_1.landing_path")
 
 
 def define_bronze_table(folder, table):
     @dp.table(
-        name=f"{BRONZE_SCHEMA}.{table}",
+        name=table,
         comment=f"Raw Jolpica pages from '{folder}', one row per JSON file",
+        # Append-only history: a full refresh would wipe and rebuild it
+        table_properties={"pipelines.reset.allowed": "false"},
     )
     def bronze():
         # Directory listing: the managed volume has no external location with file events

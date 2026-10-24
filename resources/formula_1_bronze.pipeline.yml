@@ -16,5 +16,4 @@ resources:
           - ../dist/*.whl
 
       configuration:
-        formula_1.bronze_schema: ${var.bronze_schema}
-        formula_1.landing_path: /Volumes/${var.catalog}/${var.bronze_schema}/${var.volume}
+        formula_1.landing_path: ${var.landing_path}
