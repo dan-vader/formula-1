@@ -1,0 +1,42 @@
+constructor_id,season,power_unit_supplier
+alfa,2023,Ferrari
+alphatauri,2023,Honda RBPT
+alpine,2023,Renault
+aston_martin,2023,Mercedes
+ferrari,2023,Ferrari
+haas,2023,Ferrari
+mclaren,2023,Mercedes
+mercedes,2023,Mercedes
+red_bull,2023,Honda RBPT
+williams,2023,Mercedes
+alpine,2024,Renault
+aston_martin,2024,Mercedes
+ferrari,2024,Ferrari
+haas,2024,Ferrari
+mclaren,2024,Mercedes
+mercedes,2024,Mercedes
+rb,2024,Honda RBPT
+red_bull,2024,Honda RBPT
+sauber,2024,Ferrari
+williams,2024,Mercedes
+alpine,2025,Renault
+aston_martin,2025,Mercedes
+ferrari,2025,Ferrari
+haas,2025,Ferrari
+mclaren,2025,Mercedes
+mercedes,2025,Mercedes
+rb,2025,Honda RBPT
+red_bull,2025,Honda RBPT
+sauber,2025,Ferrari
+williams,2025,Mercedes
+alpine,2026,Mercedes
+aston_martin,2026,Honda
+audi,2026,Audi
+cadillac,2026,Ferrari
+ferrari,2026,Ferrari
+haas,2026,Ferrari
+mclaren,2026,Mercedes
+mercedes,2026,Mercedes
+rb,2026,Red Bull Ford
+red_bull,2026,Red Bull Ford
+williams,2026,Mercedes
