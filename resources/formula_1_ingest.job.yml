@@ -50,15 +50,12 @@ resources:
               - "{{job.parameters.max_requests_per_hour}}"
         - task_key: fetch_openf1
           environment_key: default
+          timeout_seconds: 5400
           spark_python_task:
             python_file: ../src/ingestion/fetch_openf1.py
             parameters:
-              - --catalog
-              - "{{job.parameters.catalog}}"
-              - --bronze-schema
-              - "{{job.parameters.bronze_schema}}"
-              - --volume
-              - "{{job.parameters.volume}}"
+              - --landing-path
+              - "{{job.parameters.landing_path}}"
               - --secret-scope
               - "{{job.parameters.secret_scope}}"
               - --contact-email-key
