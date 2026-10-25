@@ -5,6 +5,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "requests>=2.31,<3",
     "tenacity>=8.2,<10",
+    "pyyaml>=6,<7",
 ]
 
 [project.optional-dependencies]
@@ -21,6 +22,7 @@ dev = [
     "databricks-dlt",
     "databricks-connect>=16.4,<16.5",
     "ipykernel",
+    "databricks-labs-dqx==0.17.0",
 ]
 
 [build-system]
