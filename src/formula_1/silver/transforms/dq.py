@@ -46,7 +46,7 @@ def quarantine(checked_df, table, key_cols) -> DataFrame:
                 failed.alias("failed_rules"),
                 F.to_json(F.struct(*payload_cols)).alias("payload"),
                 load_id.alias("source_load_id"),
-                F.col("_ingested_at").alias("source_ingested_at"),
+                F.col("ingested_at").alias("source_ingested_at"),
                 F.current_timestamp().alias("quarantined_at")
             )
     )
