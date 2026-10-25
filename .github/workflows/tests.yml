@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Install dependencies
-        run: uv sync
+        run: uv sync --locked
       - name: Lint tests
         run: uv run ruff check tests
       - name: Run unit tests
