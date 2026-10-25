@@ -21,6 +21,9 @@ def bronze(table: str) -> DataFrame:
     return _spark().read.table(f"{catalog}.{bronze}.{table}")
 
 
+def bronze_stream() -> DataFrame:
+    return bronze("openf1_stream_raw")
+
+
 def field_names(ddl: str) -> list[str]:
     return _spark().createDataFrame([], ddl).columns
-
