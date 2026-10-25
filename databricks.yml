@@ -6,9 +6,9 @@ bundle:
 include:
   - resources/*.yml
 
-# sync:
-#   exclude:
-#     - producer/**
+sync:
+  exclude:
+    - producer/**
 
 artifacts:
   formula_1_wheel:
@@ -60,6 +60,10 @@ variables:
   openf1_max_requests_per_hour:
     description: Hourly request budget for OpenF1
     default: "1400"
+  eventhub_namespace:
+    description: Event Hubs namespace that receives the OpenF1 replay
+  eventhub_name:
+    description: Event Hub (topic) that receives the OpenF1 replay
 
 targets:
   dev:
@@ -70,3 +74,5 @@ targets:
     variables:
       catalog: dbr_dev_ua5816bd
       landing_path: /Volumes/dbr_dev_ua5816bd/formula_1_bronze/raw
+      eventhub_namespace: evhua5816bd
+      eventhub_name: danylo-ev-hub
