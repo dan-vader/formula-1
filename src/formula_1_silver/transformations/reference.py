@@ -1,5 +1,5 @@
 from formula_1.silver import factory
-from formula_1.silver.schemas.silver import FINISH_STATUS_DDL
+from formula_1.silver.schemas.silver import FINISH_STATUS_DDL, DRIVER_DDL
 from formula_1.silver.transforms import reference as R
 
 
@@ -11,4 +11,14 @@ factory.register(
     keys=["status_id"],
     ddl=FINISH_STATUS_DDL,
     comment="Jolpica finish statuses"
+)
+
+factory.register(
+    "silver_driver",
+    parsed=R.driver_parsed,
+    deduped=R.driver_deduped,
+    enriched=R.driver_enriched,
+    keys=["driver_id"],
+    ddl=DRIVER_DDL,
+    comment="Jolpica drivers, one row per driver"
 )

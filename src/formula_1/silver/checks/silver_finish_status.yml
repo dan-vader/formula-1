@@ -1,4 +1,3 @@
-# R-FIN-01: status_id and status are required, status_category must be a known value
 - name: R-FIN-01
   criticality: error
   check:
