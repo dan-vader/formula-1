@@ -17,6 +17,7 @@ producer = [
 [dependency-groups]
 dev = [
     "pytest",
+    "chispa",
     "ruff",
     "databricks-dlt",
     "databricks-connect>=16.4,<16.5",
@@ -32,3 +33,8 @@ packages = ["src/formula_1"]
 
 [tool.ruff]
 line-length = 120
+
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
