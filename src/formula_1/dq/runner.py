@@ -17,7 +17,7 @@ def run_check(spark, check):
     try:
         failed_rows = spark.sql(check.sql).first()["failed_rows"]
         error = None
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - any failing query is recorded and the other checks still run
         failed_rows, error = None, str(exc)[:1000]
     passed = error is None and failed_rows == 0
     log.info(
