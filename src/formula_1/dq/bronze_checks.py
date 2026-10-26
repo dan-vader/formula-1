@@ -19,6 +19,11 @@ REFERENCE_TABLES = ("ref_pu_supplier", "ref_team_lineage")
 CONSTRUCTORS_TABLE = "jolpica_constructors_raw"
 CONSTRUCTORS_SCHEMA = "MRData STRUCT<ConstructorTable: STRUCT<Constructors: ARRAY<STRUCT<constructorId: STRING>>>>"
 DEFAULT_MAX_LOAD_AGE_HOURS = 48
+MARKER_GRACE_HOURS = 6  # a load younger than this may still be running
+
+
+ERROR = "error"  # the data is broken: the job fails
+WARN = "warn"  # worth a look: recorded in dq_results, the job stays green
 
 
 class Check(NamedTuple):
@@ -26,6 +31,7 @@ class Check(NamedTuple):
     name: str
     table: str
     sql: str
+    severity: str = ERROR
 
 
 def file_tables():
@@ -158,15 +164,24 @@ def valid_stream_endpoint(table):
 
 
 def has_load_marker(table, loads_table):
-    """failed_rows = loads that have data but no marker."""
+    """failed_rows = loads older than the grace period that have data but no marker.
+
+    A warning: a failed or unfinished load has no marker by design and silver ignores it.
+    """
     return Check(
         "consistency",
         "load_has_marker",
         table,
         f"""
         SELECT count(*) AS failed_rows
-        FROM (SELECT DISTINCT _load_id FROM {table}) AS data
+        FROM (
+            SELECT _load_id
+            FROM {table}
+            GROUP BY _load_id
+            HAVING min(_ingested_at) < current_timestamp() - INTERVAL {MARKER_GRACE_HOURS} HOURS
+        ) AS data
         LEFT ANTI JOIN {loads_table} AS marker ON data._load_id = marker._load_id""",
+        severity=WARN,
     )
 
 
@@ -225,7 +240,10 @@ def marker_counts_match(table, endpoint, loads_table):
 
 
 def fresh_load(loads_table, max_age_hours):
-    """failed_rows = 1 when the latest load is older than the limit or there is no load at all."""
+    """failed_rows = 1 when the latest load is older than the limit or there is no load at all.
+
+    A warning: between race weekends there may be nothing new to load.
+    """
     return Check(
         "timeliness",
         f"latest_load_within_{max_age_hours}h",
@@ -236,6 +254,7 @@ def fresh_load(loads_table, max_age_hours):
             ELSE 1
         END AS failed_rows
         FROM {loads_table}""",
+        severity=WARN,
     )
 
 

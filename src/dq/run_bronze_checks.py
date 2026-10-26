@@ -31,7 +31,15 @@ def main():
     runner.save_results(spark, results, args.results_table, run_id, layer="bronze")
 
     failed = runner.failed_checks(results)
-    log.info("Passed %d of %d checks", len(results) - len(failed), len(results))
+    warned = runner.warned_checks(results)
+    log.info(
+        "Checks: %d total, %d errors, %d warnings",
+        len(results),
+        len(failed),
+        len(warned),
+    )
+    for r in warned:
+        log.warning("WARN %s on %s: failed_rows=%s", r["check"].name, r["check"].table, r["failed_rows"])
     if failed:
         names = ", ".join(f"{r['check'].name} on {r['check'].table}" for r in failed)
         raise RuntimeError(f"{len(failed)} bronze checks failed: {names}")

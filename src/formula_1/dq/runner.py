@@ -2,32 +2,31 @@
 
 from datetime import UTC, datetime
 
+from formula_1.dq.bronze_checks import ERROR
 from formula_1.logging_utils import get_logger
 
 log = get_logger("formula_1.dq")
 
 RESULTS_SCHEMA = (
     "run_id STRING, checked_at TIMESTAMP, layer STRING, check_group STRING, check_name STRING, "
-    "table_name STRING, failed_rows BIGINT, passed BOOLEAN, error STRING"
+    "table_name STRING, failed_rows BIGINT, passed BOOLEAN, error STRING, severity STRING"
 )
 
 
 def run_check(spark, check):
-    """Runs one check; a query that fails to run counts as a failed check, the run goes on."""
+    """Runs one check; a query that fails or returns NULL counts as failed, the run goes on."""
     try:
-        failed_rows = spark.sql(check.sql).first()["failed_rows"]
-        error = None
+        row = spark.sql(check.sql).first()
+        value = None if row is None else row["failed_rows"]
+        if value is None:
+            failed_rows, error = None, "query returned NULL instead of a number"
+        else:
+            failed_rows, error = int(value), None
     except Exception as exc:  # noqa: BLE001 - any failing query is recorded and the other checks still run
         failed_rows, error = None, str(exc)[:1000]
     passed = error is None and failed_rows == 0
-    log.info(
-        "%s %s.%s on %s: failed_rows=%s",
-        "PASS" if passed else "FAIL",
-        check.group,
-        check.name,
-        check.table,
-        failed_rows,
-    )
+    status = "PASS" if passed else ("FAIL" if check.severity == ERROR else "WARN")
+    log.info("%s %s.%s on %s: failed_rows=%s", status, check.group, check.name, check.table, failed_rows)
     return {"check": check, "failed_rows": failed_rows, "passed": passed, "error": error}
 
 
@@ -48,11 +47,23 @@ def save_results(spark, results, results_table, run_id, layer):
             r["failed_rows"],
             r["passed"],
             r["error"],
+            r["check"].severity,
         )
         for r in results
     ]
-    spark.createDataFrame(rows, RESULTS_SCHEMA).write.mode("append").saveAsTable(results_table)
+    (
+        spark.createDataFrame(rows, RESULTS_SCHEMA)
+        .write.mode("append")
+        .option("mergeSchema", "true")
+        .saveAsTable(results_table)
+    )
 
 
 def failed_checks(results):
-    return [r for r in results if not r["passed"]]
+    """Failed error-level checks: these fail the job."""
+    return [r for r in results if not r["passed"] and r["check"].severity == ERROR]
+
+
+def warned_checks(results):
+    """Failed warn-level checks: recorded, but the job stays green."""
+    return [r for r in results if not r["passed"] and r["check"].severity != ERROR]
