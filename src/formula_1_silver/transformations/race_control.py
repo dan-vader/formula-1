@@ -2,7 +2,7 @@ from pyspark import pipelines as dp
 
 from formula_1.silver import factory
 from formula_1.silver.transforms import race_control
-from formula_1.silver.schemas.silver import RACE_CONTROL_DDL
+from formula_1.silver.schemas.silver import RACE_CONTROL_DDL, TRACK_STATUS_INTERVAL_DDL
 
 
 factory.register(
@@ -14,4 +14,13 @@ factory.register(
     keys=["openf1_session_key", "event_ts", "event_hash"],
     ddl=RACE_CONTROL_DDL,
     comment="OpenF1 race control messages with a classified event_type"
+)
+
+factory.register(
+    "silver_track_status_interval",
+    parsed=lambda: dp.read("silver_race_control"),
+    enriched=lambda df: race_control.track_status_intervals(df, dp.read("silver_session")),
+    keys=["openf1_session_key", "interval_start_utc"],
+    ddl=TRACK_STATUS_INTERVAL_DDL,
+    comment="Safety car, virtual safety car and red flag intervals"
 )

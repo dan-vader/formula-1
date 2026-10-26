@@ -1,0 +1,7 @@
+- name: R-TRK-01
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(interval_end_utc > interval_start_utc, false)"
+      msg: interval end is not after its start

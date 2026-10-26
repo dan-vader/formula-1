@@ -40,3 +40,8 @@ RACE_CONTROL_DDL = (
     "openf1_session_key int, event_ts timestamp, event_hash string, category string, flag string, scope "
     "string, message string, driver_number int, lap_number int, event_type string, ingested_at timestamp"
 )
+
+TRACK_STATUS_INTERVAL_DDL = (
+    "openf1_session_key int, interval_start_utc timestamp, interval_end_utc timestamp, "
+    "track_status_name string, severity_rank int, ingested_at timestamp"
+)
