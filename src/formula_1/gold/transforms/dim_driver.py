@@ -16,4 +16,6 @@ def dim_driver() -> DataFrame:
         F.min("snapshot_ts").alias("inferred_at")
     )
     dim = with_inferred_members(known, referenced, "driver_id")
-    return with_unknown_member(dim.select(sk("driver_id").alias("driver_sk"), "*"), "driver_sk")
+    return with_unknown_member(
+        dim.select(sk("driver_id").alias("driver_sk"), "*"), "driver_sk", is_inferred=False
+    )

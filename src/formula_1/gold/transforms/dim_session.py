@@ -31,4 +31,6 @@ def dim_session() -> DataFrame:
         session_type=F.when(F.split("session_id", "-")[2] == "S", "Sprint").otherwise("Race"),
     )
     columns = [c for c in dim.columns if c != "session_id"]
-    return with_unknown_member(dim.select(session_sk("session_id").alias("session_sk"), *columns), "session_sk")
+    return with_unknown_member(
+        dim.select(session_sk("session_id").alias("session_sk"), *columns), "session_sk", is_inferred=False
+    )

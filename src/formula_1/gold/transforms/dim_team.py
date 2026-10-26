@@ -21,7 +21,7 @@ def _versions(seasons: DataFrame) -> DataFrame:
     return (
         seasons.withColumn("_version", F.sum(changed.cast("int")).over(by_season))
         .groupBy("constructor_id", "_version", "power_unit_supplier")
-        .agg(F.min("season").alias("_first_season"))
+        .agg(F.min("season").alias("_first_season"), F.max("season").alias("_last_season"))
     )
 
 
@@ -29,11 +29,18 @@ def dim_team() -> DataFrame:
     seasons = silver("silver_team")
     by_start = Window.partitionBy("constructor_id").orderBy("effective_from")
     next_from = F.lead("effective_from").over(by_start)
+    latest_season = F.max("_last_season").over(Window.partitionBy(F.lit(1)))
+    retired_end = F.when(
+        F.col("_last_season") < latest_season, F.make_date("_last_season", F.lit(12), F.lit(31))
+    )
     dim = (
         _versions(seasons)
         .withColumn("effective_from", F.make_date("_first_season", F.lit(1), F.lit(1)))
-        .withColumn("effective_to", F.coalesce(F.date_sub(next_from, 1), F.to_date(F.lit(OPEN_END))))
-        .withColumn("is_current", next_from.isNull())
+        .withColumn(
+            "effective_to",
+            F.coalesce(F.date_sub(next_from, 1), retired_end, F.to_date(F.lit(OPEN_END))),
+        )
+        .withColumn("is_current", next_from.isNull() & (F.col("_last_season") == latest_season))
         .join(_latest_attributes(seasons), "constructor_id")
         .select(
             sk("constructor_id", "effective_from").alias("team_sk"),
@@ -47,4 +54,4 @@ def dim_team() -> DataFrame:
             "is_current",
         )
     )
-    return with_unknown_member(dim, "team_sk")
+    return with_unknown_member(dim, "team_sk", is_current=False)
