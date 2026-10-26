@@ -26,9 +26,9 @@ SESSION_DRIVER_DDL = (
 )
 
 RACE_RESULT_DDL = (
-    "session_id string, driver_id string, snapshot_ts timestamp, openf1_session_key int, constructor_id "
-    "string, car_number int, grid_position int, position_text string, classified_position int, points "
-    "decimal(5,2), status_id int, laps_completed int, result_hash string, is_late_change boolean"
+    "session_id string, driver_id string, snapshot_ts timestamp, openf1_session_key int, constructor_id string, "
+    "car_number int, grid_position int, position_text string, classified_position int, "
+    "points decimal(5,2), status_id int, laps_completed int, result_hash string, is_late_change boolean"
 )
 
 JOLPICA_PIT_STOP_DDL = (
@@ -37,11 +37,16 @@ JOLPICA_PIT_STOP_DDL = (
 )
 
 RACE_CONTROL_DDL = (
-    "openf1_session_key int, event_ts timestamp, event_hash string, category string, flag string, scope "
-    "string, message string, driver_number int, lap_number int, event_type string, ingested_at timestamp"
+    "openf1_session_key int, event_ts timestamp, event_hash string, category string, flag string, "
+    "scope string, message string, driver_number int, lap_number int, event_type string, ingested_at timestamp"
 )
 
 TRACK_STATUS_INTERVAL_DDL = (
     "openf1_session_key int, interval_start_utc timestamp, interval_end_utc timestamp, "
     "track_status_name string, severity_rank int, ingested_at timestamp"
+)
+
+STINT_DDL = (
+    "openf1_session_key int, driver_number int, stint_number int, lap_start int, lap_end int, "
+    "compound string, tyre_age_at_start int, ingested_at timestamp"
 )
