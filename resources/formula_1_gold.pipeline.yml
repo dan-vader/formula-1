@@ -19,3 +19,4 @@ resources:
       configuration:
         formula_1.catalog: ${var.catalog}
         formula_1.silver_schema: ${var.silver_schema}
+        formula_1.seasons: ${var.jolpica_seasons}
