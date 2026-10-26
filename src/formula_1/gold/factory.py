@@ -1,34 +1,47 @@
-from pyspark.sql import DataFrame, functions as F
+import re
+from collections.abc import Callable
 
-from formula_1.gold.config import silver
-from formula_1.gold.surrogate import session_sk, with_inferred_members, with_unknown_member
+from pyspark import pipelines as dp
+from pyspark.sql import DataFrame
+
+from formula_1.silver.config import field_names
+from formula_1.silver.transforms.dq import _engine
 
 
-def dim_session() -> DataFrame:
-    known = silver("silver_session").select(
-        "session_id",
-        "openf1_session_key",
-        "season",
-        "round",
-        "session_type",
-        "session_start_utc",
-        "event_name",
-        "circuit_name",
-        "circuit_type",
-        "regulation_era",
-        F.lit(False).alias("is_inferred"),
-        F.lit(None).cast("timestamp").alias("inferred_at"),
-    )
-    referenced = silver("silver_race_result").groupBy("session_id").agg(
-        F.min("snapshot_ts").alias("inferred_at")
-    )
-    dim = with_inferred_members(
-        known,
-        referenced,
-        "session_id",
-        season=F.expr("try_cast(split(session_id, '-')[0] AS int)"),
-        round=F.expr("try_cast(split(session_id, '-')[1] AS int)"),
-        session_type=F.when(F.split("session_id", "-")[2] == "S", "Sprint").otherwise("Race"),
-    )
-    columns = [c for c in dim.columns if c != "session_id"]
-    return with_unknown_member(dim.select(session_sk("session_id").alias("session_sk"), *columns), "session_sk")
+_KEY_CONSTRAINTS = re.compile(r",\s*CONSTRAINT\s+\w+\s+PRIMARY KEY\s*\([^)]*\)|\s+PRIMARY KEY\b", re.IGNORECASE)
+
+
+def columns(ddl: str) -> list[str]:
+    return field_names(_KEY_CONSTRAINTS.sub("", ddl))
+
+
+def _is_unique(table: str, rule: str, cols: list[str]) -> dict:
+    return {
+        "name": f"{table}_{rule}_unique",
+        "criticality": "error",
+        "check": {"function": "is_unique", "arguments": {"columns": cols}},
+    }
+
+
+def register_dimension(
+    table: str,
+    build: Callable[[], DataFrame],
+    ddl: str,
+    comment: str,
+    sk_col: str,
+    natural_key: list[str] | None = None,
+):
+    cols = columns(ddl)
+    checks = [_is_unique(table, "sk", [sk_col])]
+    if natural_key:
+        checks.append(_is_unique(table, "natural_key", natural_key))
+
+    @dp.temporary_view(name=f"{table}_checked")
+    @dp.expect_all_or_fail({"dq_passed": "_errors IS NULL"})
+    def _checked():
+        df = build()
+        return _engine(df).apply_checks_by_metadata(df, checks)
+
+    @dp.materialized_view(name=table, schema=ddl, comment=comment, cluster_by_auto=True)
+    def _dimension():
+        return dp.read(f"{table}_checked").select(*cols)

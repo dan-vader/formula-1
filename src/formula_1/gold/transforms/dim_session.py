@@ -1,7 +1,7 @@
 from pyspark.sql import DataFrame, functions as F
 
 from formula_1.gold.config import silver
-from formula_1.gold.surrogate import sk, with_inferred_members, with_unknown_member
+from formula_1.gold.surrogate import session_sk, with_inferred_members, with_unknown_member
 
 
 def dim_session() -> DataFrame:
@@ -31,4 +31,4 @@ def dim_session() -> DataFrame:
         session_type=F.when(F.split("session_id", "-")[2] == "S", "Sprint").otherwise("Race"),
     )
     columns = [c for c in dim.columns if c != "session_id"]
-    return with_unknown_member(dim.select(sk("session_id").alias("session_sk"), *columns), "session_sk")
+    return with_unknown_member(dim.select(session_sk("session_id").alias("session_sk"), *columns), "session_sk")
