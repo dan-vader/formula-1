@@ -1,0 +1,39 @@
+resources:
+  jobs:
+    formula_1_dq_bronze:
+      name: formula_1_dq_bronze
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.bronze_schema}
+        - name: results_table
+          default: ${var.catalog}.${var.bronze_schema}.dq_results
+        - name: max_load_age_hours
+          default: "48"
+
+      tasks:
+        - task_key: run_bronze_checks
+          environment_key: default
+          timeout_seconds: 1800
+          spark_python_task:
+            python_file: ../src/dq/run_bronze_checks.py
+            parameters:
+              - --catalog
+              - "{{job.parameters.catalog}}"
+              - --schema
+              - "{{job.parameters.schema}}"
+              - --results-table
+              - "{{job.parameters.results_table}}"
+              - --max-load-age-hours
+              - "{{job.parameters.max_load_age_hours}}"
+              - --run-id
+              - "{{job.run_id}}"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "5"
+            dependencies:
+              - ../dist/*.whl
