@@ -3,7 +3,7 @@ from pyspark.sql import DataFrame, Window
 
 from formula_1.silver import config
 from formula_1.silver.schemas import jolpica as J, openf1 as O
-from formula_1.silver.transforms import dedup, parse, snapshot
+from formula_1.silver.transforms import dedup, parse, snapshot, reference
 from formula_1.silver.transforms.parse import _try_cast
 
 SESSION_TYPES = ["Race", "Sprint"]
@@ -18,6 +18,7 @@ def session_id(season, round, session_type):
     )
 
 
+# silver_session
 def session_parsed() -> DataFrame:
     snap = snapshot.latest_valid_openf1(config.bronze("openf1_sessions_raw"))
     return parse.explode_openf1(snap, O.SESSIONS)
@@ -131,6 +132,120 @@ def session_enriched(df) -> DataFrame:
         F.col("sched_circuit_id").alias("jolpica_circuit_id"),
         "ingested_at",
         "_chk_schedule_matches",
+        "_load_id",
+    )
+
+
+# silver_session_driver
+def session_driver_parsed() -> DataFrame:
+    snap = snapshot.latest_valid_openf1(config.bronze("openf1_drivers_raw"))
+    return parse.explode_openf1(snap, O.DRIVERS)
+
+
+# Keep only drivers of sessions that exist in silver_session (Race and Sprint)
+def session_driver_filtered(df, session) -> DataFrame:
+    known = session.select(F.col("openf1_session_key").alias("_sk")).distinct()
+    return df.join(
+        known,
+        on=_try_cast("session_key", "int") == known["_sk"],
+        how="left_semi"
+    )
+
+
+def session_driver_deduped(df: DataFrame) -> DataFrame:
+    keyed = (
+        df.withColumn("_s", _try_cast("session_key", "int"))
+        .withColumn("_n", _try_cast("driver_number", "int"))
+    )
+    return dedup.dedup_latest(keyed, ["_s", "_n"])
+
+
+def _casted_drivers(df: DataFrame, session: DataFrame) -> DataFrame:
+    drivers = df.select(
+        _try_cast("session_key", "int").alias("openf1_session_key"),
+        _try_cast("driver_number", "int").alias("driver_number"),
+        F.upper(F.trim("name_acronym")).alias("name_acronym"),
+        F.coalesce(F.col("full_name"), F.concat_ws(" ", "first_name", "last_name")).alias("full_name"),
+        F.col("team_name").alias("team_name_openf1"),
+        F.when(F.col("team_colour").rlike("^[0-9A-Fa-f]{6}$"), F.upper("team_colour")).alias("team_colour"),
+        F.col("_ingested_at").alias("ingested_at"),
+        "_load_id",
+    )
+    return drivers.join(
+        session.select("openf1_session_key", "session_id"),
+        on="openf1_session_key",
+        how="left"
+    )
+
+# Jolpica results: (session_id, car number) -> driver and constructor, latest snapshot
+def _car_numbers() -> DataFrame:
+
+    def results_of(table, field, session_type) -> DataFrame:
+        snap = snapshot.latest_complete_jolpica(config.bronze(table))
+        return parse.explode_results(snap, field).select(
+            session_id(_try_cast("Race.season", "int"),
+                       _try_cast("Race.round", "int"),
+                       F.lit(session_type)).alias("session_id"),
+            _try_cast("Result.number", "int").alias("driver_number"),
+            F.lower(F.trim("Result.Driver.driverId")).alias("number_driver_id"),
+            F.lower(F.trim("Result.Constructor.constructorId")).alias("constructor_id"),
+            "_load_id",
+            "_ingested_at",
+        )
+
+    rows = results_of("jolpica_race_results_raw", "Results", "Race").unionByName(
+        results_of("jolpica_sprint_results_raw", "SprintResults", "Sprint")
+    )
+    unique = dedup.dedup_latest(rows, ["session_id", "driver_number"])
+    return unique.select("session_id", "driver_number", "number_driver_id", "constructor_id")
+
+
+# driver_id -> Jolpica code (3 letters)
+def _driver_codes() -> DataFrame:
+    drivers = reference.driver_enriched(reference.driver_deduped(reference.driver_parsed()))
+    return drivers.select("driver_id", F.col("name_acronym").alias("jolpica_code"))
+
+
+# Codes that belong to exactly one driver: safe to match OpenF1 by acronym
+def _unique_codes(codes: DataFrame) -> DataFrame:
+    return (
+        codes.where("jolpica_code IS NOT NULL")
+        .groupBy(F.col("jolpica_code").alias("name_acronym"))
+        .agg(F.count(F.lit(1)).alias("_n"), F.first("driver_id").alias("code_driver_id"))
+        .where("_n = 1")
+        .drop("_n")
+    )
+
+
+def session_driver_enriched(df: DataFrame, session: DataFrame) -> DataFrame:
+    drivers = _casted_drivers(df, session)
+    codes = _driver_codes()
+    # method 1: car number in the Jolpica result; method 2: unique driver code
+    joined = (
+        drivers.join(_car_numbers(), ["session_id", "driver_number"], "left")
+            .join(_unique_codes(codes), "name_acronym", "left")
+            .withColumn("driver_id", F.coalesce("number_driver_id", "code_driver_id"))
+            .join(codes, "driver_id", "left")
+    )
+    map_method = (
+        F.when(F.col("number_driver_id").isNotNull(), "car_number")
+        .when(F.col("code_driver_id").isNotNull(), "name_acronym")
+        .otherwise("unmatched")
+    )
+    acronym_match = F.when(F.col("driver_id").isNotNull(), F.col("name_acronym") == F.col("jolpica_code"))
+    return joined.select(
+        "openf1_session_key",
+        "driver_number",
+        "session_id",
+        "driver_id",
+        "constructor_id",
+        "name_acronym",
+        "full_name",
+        "team_name_openf1",
+        "team_colour",
+        map_method.alias("map_method"),
+        acronym_match.alias("acronym_match"),
+        "ingested_at",
         "_load_id",
     )
 

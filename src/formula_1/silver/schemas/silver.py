@@ -18,3 +18,9 @@ SESSION_DDL = (
     "session_start_utc timestamp, session_end_utc timestamp, gmt_offset string, session_date_local date, "
     "jolpica_circuit_id string, ingested_at timestamp"
 )
+
+SESSION_DRIVER_DDL = (
+    "openf1_session_key int, driver_number int, session_id string, driver_id string, constructor_id "
+    "string, name_acronym string, full_name string, team_name_openf1 string, team_colour string, "
+    "map_method string, acronym_match boolean, ingested_at timestamp"
+)
