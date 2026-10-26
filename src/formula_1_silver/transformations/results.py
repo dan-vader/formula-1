@@ -1,7 +1,7 @@
 from pyspark import pipelines as dp
 
 from formula_1.silver import factory
-from formula_1.silver.schemas.silver import RACE_RESULT_DDL
+from formula_1.silver.schemas.silver import RACE_RESULT_DDL, JOLPICA_PIT_STOP_DDL
 from formula_1.silver.transforms import results
 
 
@@ -14,4 +14,14 @@ factory.register(
     ddl=RACE_RESULT_DDL,
     comment="Race and Sprint results with version history",
     ref_dfs=lambda: {"silver_team": dp.read("silver_team").select("constructor_id").distinct()}
+)
+
+factory.register(
+    "silver_jolpica_pit_stop",
+    parsed=results.jolpica_pit_parsed,
+    deduped=results.jolpica_pit_deduped,
+    enriched=lambda df: results.jolpica_pit_enriched(df, dp.read("silver_session")),
+    keys=["session_id", "driver_id", "stop_number"],
+    ddl=JOLPICA_PIT_STOP_DDL,
+    comment="Official Jolpica pit stops"
 )

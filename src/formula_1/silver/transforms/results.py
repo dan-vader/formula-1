@@ -10,8 +10,9 @@ LOAD_ID_FORMAT = "yyyyMMdd'T'HHmmss'Z'"
 LATE_CHANGE_DAYS = 14
 
 
+# silver_race_result
 # One row per result record of every complete snapshot
-def _rows(table: str, list_field: str, session_type: str) -> DataFrame:
+def _rows(table, list_field, session_type) -> DataFrame:
     snap = snapshot.all_complete_jolpica(config.bronze(table))
     p = F.from_json("payload", J.RACE_RESULTS)
     races = snap.select(*config.JOLPICA_TECH, F.explode(p["MRData"]["RaceTable"]["Races"]).alias("race"))
@@ -48,7 +49,7 @@ def race_result_parsed() -> DataFrame:
 
 
 # Dedup and keep the first snapshot and every snapshot that differs from the previous one
-def race_result_deduped(df: DataFrame) -> DataFrame:
+def race_result_deduped(df) -> DataFrame:
     d = dedup.dedup_latest(df, ["session_id", "driver_id", "snapshot_ts"], order_by=("_ingested_at",))
     w = Window.partitionBy("session_id", "driver_id").orderBy("snapshot_ts")
     d = d.withColumn("_prev_hash", F.lag("result_hash").over(w))
@@ -56,7 +57,7 @@ def race_result_deduped(df: DataFrame) -> DataFrame:
     return d.where(F.col("_is_first") | (F.col("_prev_hash") != F.col("result_hash")))
 
 
-def race_result_enriched(df: DataFrame, session: DataFrame, finish_status: DataFrame) -> DataFrame:
+def race_result_enriched(df, session, finish_status) -> DataFrame:
     s = session.select("session_id", "openf1_session_key", "session_date_local")
     f = finish_status.select("status_id", F.col("status").alias("_status_text"))
     j = df.join(s, "session_id", "left").join(f, df["status"] == f["_status_text"], "left")
@@ -80,3 +81,53 @@ def race_result_enriched(df: DataFrame, session: DataFrame, finish_status: DataF
         "_chk_grid_valid",
         "_load_id"
     )
+
+
+# silver_jolpica_pit_stop
+def duration_ms(col):
+    seconds = _try_cast(col, "double")
+    minutes = (_try_cast(f"try_element_at(split({col}, ':'), 1)", "int") * 60
+               + _try_cast(f"try_element_at(split({col}, ':'), 2)", "double"))
+    return F.round(F.coalesce(seconds, minutes) * 1000).cast("bigint")
+
+
+def jolpica_pit_parsed() -> DataFrame:
+    snap = snapshot.latest_complete_jolpica(config.bronze("jolpica_pitstops_raw"))
+    p = F.from_json("payload", J.PITSTOPS)
+    races = snap.select(*config.JOLPICA_TECH, F.explode(p["MRData"]["RaceTable"]["Races"]).alias("race"))
+    r = races.select(*config.JOLPICA_TECH, "race", F.explode("race.PitStops").alias("pit"))
+    return r.select(
+        session_id(F.col("race.season"), F.col("race.round"), F.lit("Race")).alias("session_id"),
+        F.lower(F.trim("pit.driverId")).alias("driver_id"),
+        _try_cast("pit.stop", "int").alias("stop_number"),
+        _try_cast("pit.lap", "int").alias("lap_number"),
+        F.col("pit.time").alias("_local_time"),
+        duration_ms("pit.duration").alias("duration_ms"),
+        "_ingested_at",
+        "_load_id"
+    )
+
+
+def jolpica_pit_deduped(df) -> DataFrame:
+    return dedup.dedup_latest(df, ["session_id", "driver_id", "stop_number"])
+
+
+def jolpica_pit_enriched(df, session) -> DataFrame:
+    s = session.select("session_id", "session_date_local", "gmt_offset")
+    j = df.join(s, "session_id", "left")
+    # Jolpica gives the local time of day, OpenF1 gives the offset of the circuit
+    j = j.withColumn(
+        "_local_ts",
+        F.to_timestamp(F.concat_ws(" ", F.col("session_date_local").cast("string"), "_local_time"))
+    )
+    return j.select(
+        "session_id",
+        "driver_id",
+        "stop_number",
+        "lap_number",
+        F.expr("_local_ts - CAST(gmt_offset AS INTERVAL HOUR TO SECOND)").alias("pit_time_utc"),
+        "duration_ms",
+        F.col("_ingested_at").alias("ingested_at"),
+        "_load_id"
+    )
+

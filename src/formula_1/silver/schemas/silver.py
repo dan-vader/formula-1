@@ -30,3 +30,8 @@ RACE_RESULT_DDL = (
     "string, car_number int, grid_position int, position_text string, classified_position int, points "
     "decimal(5,2), status_id int, laps_completed int, result_hash string, is_late_change boolean"
 )
+
+JOLPICA_PIT_STOP_DDL = (
+    "session_id string, driver_id string, stop_number int, lap_number int, "
+    "pit_time_utc timestamp, duration_ms bigint, ingested_at timestamp"
+)
