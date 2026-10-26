@@ -1,0 +1,56 @@
+- name: R-RES-01
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(session_id IS NOT NULL AND driver_id IS NOT NULL, false)"
+      msg: key is null
+- name: R-RES-02
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(_chk_grid_valid, false)"
+      msg: grid missing or not a number
+- name: R-RES-03
+  criticality: error
+  check:
+    function: is_in_range
+    arguments:
+      column: classified_position
+      min_limit: 1
+      max_limit: 30
+- name: R-RES-04
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(points >= 0, false)"
+      msg: points missing or negative
+- name: R-RES-05
+  criticality: error
+  check:
+    function: foreign_key
+    arguments:
+      columns: [constructor_id]
+      ref_columns: [constructor_id]
+      ref_df_name: silver_team
+- name: R-RES-06
+  criticality: error
+  check:
+    function: is_not_null
+    arguments:
+      column: status_id
+- name: R-RES-08
+  criticality: error
+  check:
+    function: is_not_null
+    arguments:
+      column: openf1_session_key
+- name: R-RES-09
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(NOT is_late_change, false)"
+      msg: classification changed more than 14 days after the race}
