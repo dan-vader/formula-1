@@ -11,9 +11,9 @@ SESSION_TYPES = ["Race", "Sprint"]
 
 # session_id: 2026-04-R
 def session_id(season, round, session_type):
-    return F.concat_ws("-",
-        season.cast("string"),
-        F.lpad(round.cast("string"), 2, "0"),
+    return F.concat(
+        season.cast("string"), F.lit("-"),
+        F.lpad(round.cast("string"), 2, "0"), F.lit("-"),
         F.when(session_type == "Race", "R").otherwise("S")
     )
 

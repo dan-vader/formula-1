@@ -11,7 +11,7 @@ factory.register(
     filtered=session.session_filtered,
     deduped=session.session_deduped,
     enriched=session.session_enriched,
-    keys=["session_id"],
+    keys=["session_id", "openf1_session_key"],
     ddl=SESSION_DDL,
     comment="Race and Sprint sessions: OpenF1 sessions + meetings + Jolpica calendar"
 )
