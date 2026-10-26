@@ -1,0 +1,10 @@
+- name: R-DRV-01
+  criticality: error
+  check: {function: is_not_null, arguments: {column: driver_id}}
+- name: R-DRV-02
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(name_acronym IS NULL OR length(name_acronym) = 3, false)"
+      msg: name_acronym is not three letters
