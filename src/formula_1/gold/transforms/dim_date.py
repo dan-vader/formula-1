@@ -19,6 +19,5 @@ def dim_date() -> DataFrame:
         F.date_format("full_date", "MMMM").alias("month_name"),
         F.concat(F.lit("Q"), F.quarter("full_date")).alias("quarter"),
         F.year("full_date").alias("year"),
-        F.current_timestamp().alias("loaded_at"),
     )
     return with_unknown_member(dim, "date_sk")

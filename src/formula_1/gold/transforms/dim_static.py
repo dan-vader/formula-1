@@ -1,4 +1,4 @@
-from pyspark.sql import DataFrame, functions as F
+from pyspark.sql import DataFrame
 
 from formula_1.gold.surrogate import sk, with_unknown_member
 from formula_1.silver.config import _spark
@@ -28,8 +28,6 @@ def dim_tyre_compound() -> DataFrame:
         "compound_name",
         "is_slick",
         "hardness_rank",
-        F.current_timestamp().alias("loaded_at"),
-        F.current_timestamp().alias("updated_at"),
     )
     return with_unknown_member(dim, "tyre_compound_sk")
 
@@ -40,7 +38,5 @@ def dim_track_status() -> DataFrame:
         sk("track_status_name").alias("track_status_sk"),
         "track_status_name",
         "is_neutralised",
-        F.current_timestamp().alias("loaded_at"),
-        F.current_timestamp().alias("updated_at"),
     )
     return with_unknown_member(dim, "track_status_sk")
