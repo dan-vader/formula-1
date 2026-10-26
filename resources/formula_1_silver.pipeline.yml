@@ -1,0 +1,21 @@
+resources:
+  pipelines:
+    formula_1_silver:
+      name: formula_1_silver
+      catalog: ${var.catalog}
+      schema: ${var.silver_schema}
+      serverless: true
+      root_path: "../src/formula_1_silver"
+
+      libraries:
+        - glob:
+            include: ../src/formula_1_silver/transformations/**
+
+      environment:
+        dependencies:
+          - ../dist/*.whl
+          - databricks-labs-dqx==0.17.0
+
+      configuration:
+        formula_1.catalog: ${var.catalog}
+        formula_1.bronze_schema: ${var.bronze_schema}

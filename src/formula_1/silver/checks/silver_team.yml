@@ -1,0 +1,6 @@
+- name: R-TEAM-02
+  criticality: error
+  check: {function: is_not_null, arguments: {column: season}}
+- name: R-TEAM-04
+  criticality: error
+  check: {function: is_not_null_and_not_empty, arguments: {column: power_unit_supplier}}

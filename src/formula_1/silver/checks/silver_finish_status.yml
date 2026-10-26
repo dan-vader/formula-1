@@ -1,0 +1,7 @@
+- name: R-FIN-01
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(status_id IS NOT NULL AND status IS NOT NULL AND status_category IN ('Classified', 'Retired', 'Disqualified', 'Did not start'), false)"
+      msg: status_id or status missing, or unknown status_category
