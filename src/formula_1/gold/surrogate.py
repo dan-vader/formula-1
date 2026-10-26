@@ -11,6 +11,14 @@ def _col(c: str | Column) -> Column:
     return F.col(c) if isinstance(c, str) else c
 
 
+def _placeholder(field, overrides: dict) -> Column:
+    if field.name in overrides:
+        return _col(overrides[field.name])
+    if isinstance(field.dataType, StringType):
+        return F.lit(UNKNOWN_LABEL)
+    return F.lit(None)
+
+
 def sk(*natural_key: str | Column) -> Column:
     """Surrogate key: xxhash64 of the natural key, UNKNOWN_SK if any part is NULL."""
     parts = [_col(c) for c in natural_key]
@@ -27,15 +35,13 @@ def date_sk(date: str | Column) -> Column:
 
 def with_unknown_member(dim: DataFrame, sk_col: str, **overrides) -> DataFrame:
     """Append the unknown member: sk = -1, strings = 'Unknown', others NULL unless overridden."""
-    values = []
-    for field in dim.schema.fields:
-        if field.name == sk_col:
-            value = F.lit(UNKNOWN_SK)
-        elif field.name in overrides:
-            value = F.lit(overrides[field.name])
-        elif isinstance(field.dataType, StringType):
-            value = F.lit(UNKNOWN_LABEL)
-        else:
-            value = F.lit(None)
-        values.append(value.cast(field.dataType).alias(field.name))
+    overrides = {sk_col: F.lit(UNKNOWN_SK), **{k: F.lit(v) for k, v in overrides.items()}}
+    values = [_placeholder(f, overrides).cast(f.dataType).alias(f.name) for f in dim.schema.fields]
     return dim.unionByName(dim.sparkSession.range(1).select(*values))
+
+
+def with_inferred_members(known: DataFrame, referenced: DataFrame, key: str, **overrides) -> DataFrame:
+    missing = referenced.where(F.col(key).isNotNull()).join(known, key, "left_anti")
+    overrides = {key: key, "is_inferred": F.lit(True), "inferred_at": "inferred_at", **overrides}
+    values = [_placeholder(f, overrides).cast(f.dataType).alias(f.name) for f in known.schema.fields]
+    return known.unionByName(missing.select(*values))
