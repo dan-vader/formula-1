@@ -2,7 +2,13 @@ import re
 from pathlib import Path
 
 from formula_1.dq.bronze_checks import ERROR, WARN
-from formula_1.dq.silver_checks import FOREIGN_KEYS, SILVER_KEYS, quarantine_table, silver_checks
+from formula_1.dq.silver_checks import (
+    FOREIGN_KEYS,
+    FRESHNESS_TABLES,
+    SILVER_KEYS,
+    quarantine_table,
+    silver_checks,
+)
 from formula_1.silver.schemas import silver as silver_schemas
 
 TRANSFORMATIONS_DIR = Path(__file__).parents[2] / "src" / "formula_1_silver" / "transformations"
@@ -92,3 +98,14 @@ def test_quarantine_share_uses_given_threshold():
 
 def test_session_driver_mapping_checks_use_existing_columns():
     assert {"driver_id", "acronym_match"} <= table_columns("silver_session_driver")
+
+
+def test_freshness_checks_use_given_age_on_tables_with_ingested_at():
+    checks = [c for c in silver_checks("c", "s", max_age_hours=72) if c.group == "timeliness"]
+
+    assert {c.table for c in checks} == {f"c.s.{table}" for table in FRESHNESS_TABLES}
+    for check in checks:
+        assert check.name == "latest_ingest_within_72h"
+        assert "INTERVAL 72 HOURS" in check.sql
+    for table in FRESHNESS_TABLES:
+        assert "ingested_at" in table_columns(table)

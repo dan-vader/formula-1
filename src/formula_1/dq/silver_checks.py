@@ -3,7 +3,7 @@
 Same contract as bronze_checks: each check is one SQL query that returns failed_rows.
 """
 
-from formula_1.dq.bronze_checks import ERROR, WARN, Check, unique_key
+from formula_1.dq.bronze_checks import DEFAULT_MAX_LOAD_AGE_HOURS, ERROR, WARN, Check, unique_key
 
 SILVER_KEYS = {
     "silver_finish_status": ("status_id",),
@@ -27,6 +27,8 @@ FOREIGN_KEYS = [
     ("silver_session_driver", "constructor_id", "silver_team", ERROR),
 ]
 DEFAULT_MAX_QUARANTINE_SHARE = 0.05
+# reloaded on every Jolpica / OpenF1 load, so their latest ingested_at shows how fresh silver is
+FRESHNESS_TABLES = ("silver_finish_status", "silver_session")
 
 
 def quarantine_table(table):
@@ -118,7 +120,26 @@ def foreign_key(table, column, ref_table, severity=ERROR):
     )
 
 
-def silver_checks(catalog, schema, max_quarantine_share=DEFAULT_MAX_QUARANTINE_SHARE):
+def fresh_table(table, max_age_hours):
+    """failed_rows = 1 when the newest row is older than the limit or the table is empty.
+
+    A warning: between race weekends there may be nothing new to load.
+    """
+    return Check(
+        "timeliness",
+        f"latest_ingest_within_{max_age_hours}h",
+        table,
+        f"""
+        SELECT CASE
+            WHEN max(ingested_at) >= current_timestamp() - INTERVAL {max_age_hours} HOURS THEN 0
+            ELSE 1
+        END AS failed_rows
+        FROM {table}""",
+        severity=WARN,
+    )
+
+
+def silver_checks(catalog, schema, max_quarantine_share=DEFAULT_MAX_QUARANTINE_SHARE, max_age_hours=DEFAULT_MAX_LOAD_AGE_HOURS):
     """All silver checks with fully qualified table names."""
 
     def fq(name):
@@ -142,4 +163,5 @@ def silver_checks(catalog, schema, max_quarantine_share=DEFAULT_MAX_QUARANTINE_S
         unmatched_session_drivers(fq("silver_session_driver")),
         acronym_mismatches(fq("silver_session_driver")),
     ]
+    checks += [fresh_table(fq(table), max_age_hours) for table in FRESHNESS_TABLES]
     return checks
