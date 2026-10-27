@@ -29,6 +29,12 @@ FOREIGN_KEYS = [
 DEFAULT_MAX_QUARANTINE_SHARE = 0.05
 # reloaded on every Jolpica / OpenF1 load, so their latest ingested_at shows how fresh silver is
 FRESHNESS_TABLES = ("silver_finish_status", "silver_session")
+FINISHED_SESSION_GRACE_DAYS = 3  # sources may still be updating a session that ended recently
+# (table that must have rows for every finished session, join column)
+SESSION_CHILDREN = [
+    ("silver_session_driver", "openf1_session_key"),
+    ("silver_race_result", "session_id"),
+]
 
 
 def quarantine_table(table):
@@ -139,6 +145,23 @@ def fresh_table(table, max_age_hours):
     )
 
 
+def finished_sessions_have_rows(session_table, child_table, column, grace_days=FINISHED_SESSION_GRACE_DAYS):
+    """failed_rows = sessions that ended more than grace_days ago and have no rows in child_table."""
+    return Check(
+        "reconciliation",
+        f"finished_sessions_in_{child_table.split('.')[-1]}",
+        session_table,
+        f"""
+        SELECT count(*) AS failed_rows
+        FROM (
+            SELECT {column}
+            FROM {session_table}
+            WHERE session_end_utc < current_timestamp() - INTERVAL {grace_days} DAYS
+        ) AS finished
+        LEFT ANTI JOIN {child_table} AS child ON finished.{column} = child.{column}""",
+    )
+
+
 def silver_checks(catalog, schema, max_quarantine_share=DEFAULT_MAX_QUARANTINE_SHARE, max_age_hours=DEFAULT_MAX_LOAD_AGE_HOURS):
     """All silver checks with fully qualified table names."""
 
@@ -164,4 +187,8 @@ def silver_checks(catalog, schema, max_quarantine_share=DEFAULT_MAX_QUARANTINE_S
         acronym_mismatches(fq("silver_session_driver")),
     ]
     checks += [fresh_table(fq(table), max_age_hours) for table in FRESHNESS_TABLES]
+    checks += [
+        finished_sessions_have_rows(fq("silver_session"), fq(child), column)
+        for child, column in SESSION_CHILDREN
+    ]
     return checks

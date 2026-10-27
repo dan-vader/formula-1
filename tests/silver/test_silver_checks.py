@@ -3,8 +3,10 @@ from pathlib import Path
 
 from formula_1.dq.bronze_checks import ERROR, WARN
 from formula_1.dq.silver_checks import (
+    FINISHED_SESSION_GRACE_DAYS,
     FOREIGN_KEYS,
     FRESHNESS_TABLES,
+    SESSION_CHILDREN,
     SILVER_KEYS,
     quarantine_table,
     silver_checks,
@@ -109,3 +111,20 @@ def test_freshness_checks_use_given_age_on_tables_with_ingested_at():
         assert "INTERVAL 72 HOURS" in check.sql
     for table in FRESHNESS_TABLES:
         assert "ingested_at" in table_columns(table)
+
+
+def test_reconciliation_checks_cover_every_session_child():
+    checks = [c for c in silver_checks("c", "s") if c.group == "reconciliation"]
+
+    assert {c.name for c in checks} == {f"finished_sessions_in_{child}" for child, _ in SESSION_CHILDREN}
+    for check in checks:
+        assert check.table == "c.s.silver_session"
+        assert f"INTERVAL {FINISHED_SESSION_GRACE_DAYS} DAYS" in check.sql
+
+
+def test_session_children_join_on_columns_that_exist():
+    assert "session_end_utc" in table_columns("silver_session")
+    for child, column in SESSION_CHILDREN:
+        assert child in SILVER_KEYS
+        assert column in table_columns("silver_session"), column
+        assert column in table_columns(child), f"{column} not in {child}"
