@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+from chispa import assert_df_equality
+
 from formula_1.silver.transforms.snapshot import (
     all_complete_jolpica,
     complete_jolpica_loads,
@@ -17,18 +19,20 @@ LOAD_ID = "20251208T090000Z"
 JOLPICA_SCHEMA = "_season string, _load_id string, value string"
 OPENF1_SCHEMA = "_year int, _load_id string, value string"
 MARKER_SCHEMA = "_load_id string, payload string"
+LOADS_SCHEMA = "_season string, _load_id string"
 
 L1 = "20251201T090000Z"
 L2 = "20251208T090000Z"
 L3 = "20251209T090000Z"
 
 
+def assert_rows(spark, result, rows, schema):
+    expected = spark.createDataFrame(rows, schema)
+    assert_df_equality(result, expected, ignore_row_order=True, ignore_nullable=True)
+
+
 def marker(load_id, **fields):
     return (load_id, json.dumps({"load_id": load_id, **fields}))
-
-
-def season_load_pairs(result):
-    return sorted((row["_season"], row["_load_id"]) for row in result.collect())
 
 
 def page(season, offset, limit, total, load_id=LOAD_ID):
@@ -47,7 +51,8 @@ def test_csv_latest_keeps_newest_ingested_row(spark):
 
     result = csv_latest(df, ["constructor_id", "season"])
 
-    assert [row["power_unit_supplier"] for row in result.collect()] == ["Mercedes"]
+    assert_rows(spark, result, [("williams", 2025, "Mercedes", NEW)], SUPPLIER_SCHEMA)
+
 
 def test_csv_latest_keeps_one_row_per_constructor_and_season(spark):
     df = spark.createDataFrame(
@@ -61,8 +66,7 @@ def test_csv_latest_keeps_one_row_per_constructor_and_season(spark):
 
     result = csv_latest(df, ["constructor_id", "season"])
 
-    keys = sorted((row["constructor_id"], row["season"]) for row in result.collect())
-    assert keys == [("ferrari", 2024), ("ferrari", 2025), ("sauber", 2025)]
+    assert_df_equality(result, df, ignore_row_order=True, ignore_nullable=True)
 
 
 def test_csv_latest_keeps_columns_and_drops_helper(spark):
@@ -70,7 +74,7 @@ def test_csv_latest_keeps_columns_and_drops_helper(spark):
 
     result = csv_latest(df, ["constructor_id", "season"])
 
-    assert result.columns == df.columns
+    assert_df_equality(result, df, ignore_nullable=True)
 
 
 def test_csv_latest_keeps_key_that_is_missing_in_newer_file(spark):
@@ -86,7 +90,8 @@ def test_csv_latest_keeps_key_that_is_missing_in_newer_file(spark):
     result = csv_latest(df, ["constructor_id", "season"])
 
     # Current behaviour: a key removed from the CSV stays in silver with its old value
-    assert {row["constructor_id"] for row in result.collect()} == {"williams", "alpine"}
+    assert_rows(spark, result, [("williams", 2025, "Mercedes", NEW), ("alpine", 2025, "Renault", OLD)], SUPPLIER_SCHEMA)
+
 
 def test_complete_jolpica_loads_returns_load_with_all_pages(spark):
     df = spark.createDataFrame(
@@ -96,7 +101,8 @@ def test_complete_jolpica_loads_returns_load_with_all_pages(spark):
 
     result = complete_jolpica_loads(df, ["_season"])
 
-    assert [(row["_season"], row["_load_id"]) for row in result.collect()] == [("2025", LOAD_ID)]
+    assert_rows(spark, result, [("2025", LOAD_ID)], LOADS_SCHEMA)
+
 
 def test_complete_jolpica_loads_skips_load_with_missing_page(spark):
     df = spark.createDataFrame(
@@ -106,7 +112,7 @@ def test_complete_jolpica_loads_skips_load_with_missing_page(spark):
 
     result = complete_jolpica_loads(df, ["_season"])
 
-    assert result.collect() == []
+    assert_rows(spark, result, [], LOADS_SCHEMA)
 
 
 def test_complete_jolpica_loads_counts_duplicate_page_once(spark):
@@ -117,14 +123,15 @@ def test_complete_jolpica_loads_counts_duplicate_page_once(spark):
 
     result = complete_jolpica_loads(df, ["_season"])
 
-    assert result.collect() == []
+    assert_rows(spark, result, [], LOADS_SCHEMA)
+
 
 def test_complete_jolpica_loads_treats_empty_response_as_one_page(spark):
     df = spark.createDataFrame([page("2025", 0, 30, 0)], PAGE_SCHEMA)
 
     result = complete_jolpica_loads(df, ["_season"])
 
-    assert [row["_season"] for row in result.collect()] == ["2025"]
+    assert_rows(spark, result, [("2025", LOAD_ID)], LOADS_SCHEMA)
 
 
 def test_complete_jolpica_loads_checks_each_season_separately(spark):
@@ -139,7 +146,8 @@ def test_complete_jolpica_loads_checks_each_season_separately(spark):
 
     result = complete_jolpica_loads(df, ["_season"])
 
-    assert [row["_season"] for row in result.collect()] == ["2024"]
+    assert_rows(spark, result, [("2024", LOAD_ID)], LOADS_SCHEMA)
+
 
 def test_latest_complete_jolpica_ignores_load_without_marker(spark):
     df = spark.createDataFrame(
@@ -150,7 +158,7 @@ def test_latest_complete_jolpica_ignores_load_without_marker(spark):
 
     result = latest_complete_jolpica(df, markers)
 
-    assert season_load_pairs(result) == [("2025", L1)]
+    assert_rows(spark, result, [("2025", L1, "complete")], JOLPICA_SCHEMA)
 
 
 def test_latest_complete_jolpica_takes_newest_marked_load_per_season(spark):
@@ -165,7 +173,7 @@ def test_latest_complete_jolpica_takes_newest_marked_load_per_season(spark):
 
     result = latest_complete_jolpica(df, markers)
 
-    assert season_load_pairs(result) == [("2024", L1), ("2025", L2)]
+    assert_rows(spark, result, [("2024", L1, "a"), ("2025", L2, "c")], JOLPICA_SCHEMA)
 
 
 def test_latest_complete_jolpica_takes_seasonless_rows_from_newest_marked_load(spark):
@@ -180,7 +188,7 @@ def test_latest_complete_jolpica_takes_seasonless_rows_from_newest_marked_load(s
 
     result = latest_complete_jolpica(df, markers)
 
-    assert [row["value"] for row in result.collect()] == ["new_status"]
+    assert_rows(spark, result, [("all", L2, "new_status")], JOLPICA_SCHEMA)
 
 
 def test_all_complete_jolpica_keeps_every_marked_load(spark):
@@ -195,7 +203,7 @@ def test_all_complete_jolpica_keeps_every_marked_load(spark):
 
     result = all_complete_jolpica(df, markers)
 
-    assert season_load_pairs(result) == [("2025", L1), ("2025", L2)]
+    assert_rows(spark, result, [("2025", L1, "a"), ("2025", L2, "b")], JOLPICA_SCHEMA)
 
 
 def test_latest_valid_openf1_takes_newest_marked_load_per_year(spark):
@@ -210,4 +218,4 @@ def test_latest_valid_openf1_takes_newest_marked_load_per_year(spark):
 
     result = latest_valid_openf1(df, markers)
 
-    assert [row["value"] for row in result.collect()] == ["new"]
+    assert_rows(spark, result, [(2025, L2, "new")], OPENF1_SCHEMA)

@@ -28,6 +28,7 @@ dev = [
 spark-tests = [
     "pytest",
     "pyspark>=4.0,<4.1",
+    "chispa",
 ]
 
 [build-system]

@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 import pytest
+from chispa import assert_df_equality
 from pyspark.sql import functions as F
 
 from formula_1.silver.transforms import session as session_module
@@ -40,6 +41,12 @@ SCHEDULE_FULL_SCHEMA = (
 )
 MEETINGS_SCHEMA = "meeting_key int, meeting_name string, circuit_type string"
 CAR_NUMBERS_SCHEMA = "session_id string, driver_number int, number_driver_id string, constructor_id string"
+
+
+def assert_rows(spark, result, rows, schema):
+    expected = spark.createDataFrame(rows, schema)
+    assert_df_equality(result, expected, ignore_row_order=True, ignore_nullable=True)
+
 
 def use_calendar(spark, monkeypatch, schedule, meetings):
     schedule_df = spark.createDataFrame(schedule, SCHEDULE_FULL_SCHEMA)
@@ -118,7 +125,7 @@ def test_session_filtered_keeps_only_race_and_sprint_that_are_not_cancelled(spar
 
     result = session_filtered(df)
 
-    assert sorted(row["session_key"] for row in result.collect()) == ["1", "2"]
+    assert_rows(spark, result, [("1", "Race", "false"), ("2", "Sprint", None)], "session_key string, session_name string, is_cancelled string")
 
 
 def test_session_deduped_keeps_newest_load_per_session(spark):
@@ -150,7 +157,7 @@ def test_session_driver_filtered_keeps_drivers_of_known_sessions_only(spark):
 
     result = session_driver_filtered(drivers, session)
 
-    assert [row["session_key"] for row in result.collect()] == ["1"]
+    assert_rows(spark, result, [("1", "44", "HAM", L1, INGESTED)], DRIVER_RAW_SCHEMA)
 
 
 def test_session_driver_deduped_keeps_one_row_per_driver_in_session(spark):

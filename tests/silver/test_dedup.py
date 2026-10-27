@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from chispa import assert_df_equality
+
 from formula_1.silver.transforms.dedup import dedup_batch_over_stream, dedup_latest
 
 SCHEMA = "id string, value string, _load_id string, _ingested_at timestamp"
@@ -9,6 +11,9 @@ TEAM_SCHEMA = "constructor_id string, season int, value string, _load_id string,
 DRIVER_SCHEMA = "id string, value string, _season_i int, _load_id string, _ingested_at timestamp"
 SOURCE_SCHEMA = "id string, value string, _is_batch boolean, _load_id string, _ingested_at timestamp"
 
+def assert_rows(spark, result, rows, schema):
+    expected = spark.createDataFrame(rows, schema)
+    assert_df_equality(result, expected, ignore_row_order=True, ignore_nullable=True)
 
 
 def test_dedup_latest_keeps_row_from_newest_load(spark):
@@ -22,7 +27,8 @@ def test_dedup_latest_keeps_row_from_newest_load(spark):
 
     result = dedup_latest(df, ["id"])
 
-    assert [row["value"] for row in result.collect()] == ["new"]
+    assert_rows(spark, result, [("a", "new", "20251208T090000Z", INGESTED)], SCHEMA)
+
 
 def test_dedup_latest_uses_ingested_at_when_load_id_is_equal(spark):
     df = spark.createDataFrame(
@@ -35,7 +41,8 @@ def test_dedup_latest_uses_ingested_at_when_load_id_is_equal(spark):
 
     result = dedup_latest(df, ["id"])
 
-    assert [row["value"] for row in result.collect()] == ["second"]
+    assert_rows(spark, result, [("a", "second", LOAD_ID, datetime(2025, 12, 8, 10, 0))], SCHEMA)
+
 
 def test_dedup_latest_puts_rows_without_load_id_last(spark):
     df = spark.createDataFrame(
@@ -48,7 +55,8 @@ def test_dedup_latest_puts_rows_without_load_id_last(spark):
 
     result = dedup_latest(df, ["id"])
 
-    assert [row["value"] for row in result.collect()] == ["old"]
+    assert_rows(spark, result, [("a", "old", "20251201T090000Z", INGESTED)], SCHEMA)
+
 
 def test_dedup_latest_keeps_one_row_per_key(spark):
     df = spark.createDataFrame(
@@ -62,7 +70,7 @@ def test_dedup_latest_keeps_one_row_per_key(spark):
 
     result = dedup_latest(df, ["id"])
 
-    assert {row["id"]: row["value"] for row in result.collect()} == {"a": "new", "b": "only"}
+    assert_rows(spark, result, [("a", "new", "20251208T090000Z", INGESTED), ("b", "only", "20251201T090000Z", INGESTED)], SCHEMA)
 
 
 def test_dedup_latest_with_composite_key_keeps_each_season(spark):
@@ -77,15 +85,15 @@ def test_dedup_latest_with_composite_key_keeps_each_season(spark):
 
     result = dedup_latest(df, ["constructor_id", "season"])
 
-    rows = {(row["constructor_id"], row["season"]): row["value"] for row in result.collect()}
-    assert rows == {("ferrari", 2024): "new", ("ferrari", 2025): "only"}
+    assert_rows(spark, result, [("ferrari", 2024, "new", "20251208T090000Z", INGESTED), ("ferrari", 2025, "only", "20251201T090000Z", INGESTED)], TEAM_SCHEMA)
+
 
 def test_dedup_latest_keeps_columns_and_drops_helper(spark):
     df = spark.createDataFrame([("a", "only", "20251201T090000Z", INGESTED)], SCHEMA)
 
     result = dedup_latest(df, ["id"])
 
-    assert result.columns == df.columns
+    assert_df_equality(result, df, ignore_nullable=True)
 
 
 def test_dedup_latest_respects_custom_order_by(spark):
@@ -99,7 +107,8 @@ def test_dedup_latest_respects_custom_order_by(spark):
 
     result = dedup_latest(df, ["id"], order_by=("_season_i", "_load_id", "_ingested_at"))
 
-    assert [row["value"] for row in result.collect()] == ["season_2025"]
+    assert_rows(spark, result, [("hamilton", "season_2025", 2025, "20251201T090000Z", INGESTED)], DRIVER_SCHEMA)
+
 
 def test_dedup_batch_over_stream_prefers_batch_even_if_stream_is_newer(spark):
     df = spark.createDataFrame(
@@ -112,7 +121,7 @@ def test_dedup_batch_over_stream_prefers_batch_even_if_stream_is_newer(spark):
 
     result = dedup_batch_over_stream(df, ["id"])
 
-    assert [row["value"] for row in result.collect()] == ["batch"]
+    assert_rows(spark, result, [("lap_1", "batch", True, "20251208T090000Z", INGESTED)], SOURCE_SCHEMA)
 
 
 def test_dedup_batch_over_stream_keeps_newest_among_batch_rows(spark):
@@ -127,4 +136,4 @@ def test_dedup_batch_over_stream_keeps_newest_among_batch_rows(spark):
 
     result = dedup_batch_over_stream(df, ["id"])
 
-    assert [row["value"] for row in result.collect()] == ["new_batch"]
+    assert_rows(spark, result, [("lap_1", "new_batch", True, "20251208T090000Z", INGESTED)], SOURCE_SCHEMA)

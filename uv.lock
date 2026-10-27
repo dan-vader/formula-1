@@ -366,6 +366,7 @@ dev = [
     { name = "ruff" },
 ]
 spark-tests = [
+    { name = "chispa" },
     { name = "pyspark" },
     { name = "pytest" },
 ]
@@ -392,6 +393,7 @@ dev = [
     { name = "ruff" },
 ]
 spark-tests = [
+    { name = "chispa" },
     { name = "pyspark", specifier = ">=4.0,<4.1" },
     { name = "pytest" },
 ]
