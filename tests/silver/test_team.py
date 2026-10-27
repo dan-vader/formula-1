@@ -9,6 +9,8 @@ L2 = "20251208T090000Z"
 INGESTED = datetime(2025, 12, 8, 9, 0)
 SUPPLIER_SCHEMA = "constructor_id string, season int, power_unit_supplier string"
 LINEAGE_SCHEMA = "constructor_id string, team_lineage string"
+SESSION_DRIVER_SCHEMA = "openf1_session_key int, constructor_id string, team_colour string"
+SESSION_SCHEMA = "openf1_session_key int, season int, session_start_utc timestamp"
 
 def use_reference(spark, monkeypatch, suppliers, lineage):
     supplier_df = spark.createDataFrame(suppliers, SUPPLIER_SCHEMA)
@@ -40,11 +42,13 @@ def test_team_deduped_keeps_newest_load_per_constructor_and_season(spark):
     assert rows == {("ferrari", 2025): L2, ("ferrari", 2024): L1}
 
 
-def test_team_enriched_adds_supplier_and_lineage(spark, monkeypatch):
+def test_team_enriched_adds_supplier_and_lineage_and_colour(spark, monkeypatch):
     use_reference(spark, monkeypatch, [("ferrari", 2025, "Ferrari")], [("ferrari", "Ferrari")])
     teams = spark.createDataFrame([(("Ferrari", " Ferrari "), "2025", L2, INGESTED)], TEAM_SCHEMA)
+    session_driver = spark.createDataFrame([(9839, "ferrari", "E8002D")], SESSION_DRIVER_SCHEMA)
+    session = spark.createDataFrame([(9839, 2025, datetime(2025, 12, 7, 13, 0))], SESSION_SCHEMA)
 
-    result = team_enriched(team_deduped(teams)).first().asDict()
+    result = team_enriched(team_deduped(teams), session_driver, session).first().asDict()
 
     assert result == {
         "constructor_id": "ferrari",
@@ -52,7 +56,7 @@ def test_team_enriched_adds_supplier_and_lineage(spark, monkeypatch):
         "power_unit_supplier": "Ferrari",
         "team_name": "Ferrari",
         "team_lineage": "Ferrari",
-        "team_colour": None,
+        "team_colour": "E8002D",
         "ingested_at": INGESTED,
         "_load_id": L2,
     }
@@ -61,11 +65,36 @@ def test_team_enriched_adds_supplier_and_lineage(spark, monkeypatch):
 def test_team_enriched_keeps_team_missing_in_reference(spark, monkeypatch):
     use_reference(spark, monkeypatch, [("ferrari", 2024, "Ferrari")], [])
     teams = spark.createDataFrame([(("ferrari", "Ferrari"), "2025", L2, INGESTED)], TEAM_SCHEMA)
+    session_driver = spark.createDataFrame([], SESSION_DRIVER_SCHEMA)
+    session = spark.createDataFrame([], SESSION_SCHEMA)
 
-    result = team_enriched(team_deduped(teams)).collect()
+
+    result = team_enriched(team_deduped(teams), session_driver, session).collect()
 
     assert len(result) == 1
     assert result[0]["power_unit_supplier"] is None
     assert result[0]["team_lineage"] is None
+    assert result[0]["team_colour"] is None
+
+
+def test_team_enriched_takes_colour_from_latest_session_of_season(spark, monkeypatch):
+    use_reference(spark, monkeypatch, [], [])
+    teams = spark.createDataFrame([(("ferrari", "Ferrari"), "2025", L2, INGESTED)], TEAM_SCHEMA)
+    session_driver = spark.createDataFrame(
+        [(1, "ferrari", "AAAAAA"), (2, "ferrari", "BBBBBB"), (3, "ferrari", None)],
+        SESSION_DRIVER_SCHEMA,
+    )
+    session = spark.createDataFrame(
+        [
+            (1, 2025, datetime(2025, 3, 16, 4, 0)),
+            (2, 2025, datetime(2025, 12, 7, 13, 0)),
+            (3, 2025, datetime(2025, 12, 8, 13, 0)),
+        ],
+        SESSION_SCHEMA,
+    )
+
+    result = team_enriched(team_deduped(teams), session_driver, session).first()
+
+    assert result["team_colour"] == "BBBBBB"
 
 
