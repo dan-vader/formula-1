@@ -2,7 +2,7 @@ from pyspark import pipelines as dp
 
 from formula_1.silver import factory
 from formula_1.silver.transforms import pits
-from formula_1.silver.schemas.silver import PIT_STOP_DDL
+from formula_1.silver.schemas.silver import PIT_STOP_DDL, OVERTAKE_DDL
 
 
 factory.register(
@@ -23,3 +23,13 @@ factory.register(
     comment="OpenF1 pit lane visits: durations, tyres, penalty, track status, positions before and after"
 )
 
+factory.register(
+    "silver_overtake",
+    parsed=pits.overtake_parsed,
+    filtered=lambda df: pits.overtake_filtered(df, dp.read("silver_session")),
+    deduped=pits.overtake_deduped,
+    enriched=pits.overtake_enriched,
+    keys=["openf1_session_key", "overtake_ts", "overtaking_driver_number", "overtaken_driver_number"],
+    ddl=OVERTAKE_DDL,
+    comment="Overtakes per session (OpenF1 beta)"
+)

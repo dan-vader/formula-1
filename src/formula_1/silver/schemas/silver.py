@@ -65,3 +65,8 @@ PIT_STOP_DDL = (
     "track_status_name string, position_before int, position_after int, positions_lost int, ingested_at timestamp, "
     "updated_at timestamp"
 )
+
+OVERTAKE_DDL = (
+    "openf1_session_key int, overtake_ts timestamp, overtaking_driver_number int, "
+    "overtaken_driver_number int, position int, ingested_at timestamp"
+)

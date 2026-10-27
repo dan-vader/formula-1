@@ -200,3 +200,39 @@ def pit_enriched(df, stints, lap, race_control, session_driver, intervals) -> Da
         "_load_id"
     )
 
+
+# silver_overtake
+def overtake_parsed() -> DataFrame:
+    snap = snapshot.latest_valid_openf1(config.bronze("openf1_overtakes_raw"))
+    return parse.explode_openf1(snap, O.OVERTAKES)
+
+
+def overtake_filtered(df, sessions) -> DataFrame:
+    known = sessions.select(F.col("openf1_session_key").alias("_sk")).distinct()
+    return df.join(
+        known,
+        on=_try_cast("session_key", "int") == known["_sk"],
+        how="left_semi"
+    )
+
+
+def overtake_deduped(df) -> DataFrame:
+    keyed = (
+        df.withColumn("_sk", _try_cast("session_key", "int"))
+            .withColumn("_ts", _try_cast("date", "timestamp"))
+            .withColumn("_a", _try_cast("overtaking_driver_number", "int"))
+            .withColumn("_b", _try_cast("overtaken_driver_number", "int"))
+    )
+    return dedup.dedup_latest(keyed, ["_sk", "_ts", "_a", "_b"])
+
+
+def overtake_enriched(df) -> DataFrame:
+    return df.select(
+        _try_cast("session_key", "int").alias("openf1_session_key"),
+        _try_cast("date", "timestamp").alias("overtake_ts"),
+        _try_cast("overtaking_driver_number", "int").alias("overtaking_driver_number"),
+        _try_cast("overtaken_driver_number", "int").alias("overtaken_driver_number"),
+        _try_cast("position", "int").alias("position"),
+        F.col("_ingested_at").alias("ingested_at"),
+        "_load_id"
+    )
