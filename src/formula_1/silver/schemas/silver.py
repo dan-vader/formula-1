@@ -50,3 +50,10 @@ STINT_DDL = (
     "openf1_session_key int, driver_number int, stint_number int, lap_start int, lap_end int, "
     "compound string, tyre_age_at_start int, ingested_at timestamp"
 )
+
+LAP_DDL = (
+    "openf1_session_key int, driver_number int, lap_number int, driver_id string, constructor_id string, "
+    "lap_start_utc timestamp, lap_end_utc timestamp, lap_duration_ms bigint, is_pit_in_lap boolean, "
+    "is_pit_out_lap boolean, compound string, stint_number int, tyre_age_laps int, "
+    "track_status_name string, position_at_lap_end int, ingested_at timestamp, updated_at timestamp"
+)
