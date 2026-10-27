@@ -1,0 +1,15 @@
+- name: G-LAPF-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - lap_flags_sk
+- name: G-LAPF-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - is_pit_in_lap
+        - is_pit_out_lap

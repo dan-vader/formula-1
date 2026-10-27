@@ -1,0 +1,14 @@
+- name: G-DATE-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - date_sk
+- name: G-DATE-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - full_date

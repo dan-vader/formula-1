@@ -1,6 +1,8 @@
 import re
 from collections.abc import Callable
+from importlib.resources import files
 
+from databricks.labs.dqx.config import FileChecksStorageConfig
 from pyspark import pipelines as dp
 from pyspark.sql import DataFrame, functions as F
 
@@ -24,28 +26,22 @@ def _is_unique(table: str, rule: str, cols: list[str]) -> dict:
     }
 
 
-def register_dimension(
-    table: str,
-    build: Callable[[], DataFrame],
-    ddl: str,
-    comment: str,
-    sk_col: str,
-    natural_key: list[str] | None = None,
-):
+def register_dimension(table: str, build: Callable[[], DataFrame], ddl: str, comment: str):
     cols = columns(ddl)
-    checks = [_is_unique(table, "sk", [sk_col])]
-    if natural_key:
-        checks.append(_is_unique(table, "natural_key", natural_key))
+    checks_file = str(files("formula_1.gold") / "checks" / f"{table}.yml")
 
     @dp.temporary_view(name=f"{table}_checked")
     @dp.expect_all_or_fail({"dq_passed": "_errors IS NULL"})
     def _checked():
         df = build()
-        return _engine(df).apply_checks_by_metadata(df, checks)
+        engine = _engine(df)
+        checks = engine.load_checks(config=FileChecksStorageConfig(location=checks_file))
+        return engine.apply_checks_by_metadata(df, checks)
 
     @dp.materialized_view(name=table, schema=ddl, comment=comment, cluster_by_auto=True)
     def _dimension():
         return dp.read(f"{table}_checked").select(*cols)
+    
 
 def register_fact(
     table: str,
