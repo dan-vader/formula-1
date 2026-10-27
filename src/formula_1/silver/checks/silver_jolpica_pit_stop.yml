@@ -1,0 +1,6 @@
+- name: R-JPS-02
+  criticality: warn
+  check:
+    function: is_not_null
+    arguments:
+      column: duration_ms

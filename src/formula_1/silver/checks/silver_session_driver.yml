@@ -1,0 +1,10 @@
+- name: R-MAP-01
+  criticality: warn
+  check: {function: is_not_null, arguments: {column: driver_id}}
+- name: R-MAP-02
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(acronym_match IS NOT FALSE, false)"
+      msg: OpenF1 acronym differs from the Jolpica driver code
