@@ -367,6 +367,8 @@ dev = [
 ]
 spark-tests = [
     { name = "chispa" },
+    { name = "databricks-labs-dqx" },
+    { name = "pandas" },
     { name = "pyspark" },
     { name = "pytest" },
 ]
@@ -394,6 +396,8 @@ dev = [
 ]
 spark-tests = [
     { name = "chispa" },
+    { name = "databricks-labs-dqx", specifier = "==0.17.0" },
+    { name = "pandas" },
     { name = "pyspark", specifier = ">=4.0,<4.1" },
     { name = "pytest" },
 ]
