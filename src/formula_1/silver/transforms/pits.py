@@ -196,7 +196,6 @@ def pit_enriched(df, stints, lap, race_control, session_driver, intervals) -> Da
         "position_after",
         (F.col("position_after") - F.col("position_before")).alias("positions_lost"),
         F.col("_ingested_at").alias("ingested_at"),
-        F.current_timestamp().alias("updated_at"),
         "_load_id"
     )
 

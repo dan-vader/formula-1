@@ -55,15 +55,14 @@ LAP_DDL = (
     "openf1_session_key int, driver_number int, lap_number int, driver_id string, constructor_id string, "
     "lap_start_utc timestamp, lap_end_utc timestamp, lap_duration_ms bigint, is_pit_in_lap boolean, "
     "is_pit_out_lap boolean, compound string, stint_number int, tyre_age_laps int, "
-    "track_status_name string, position_at_lap_end int, ingested_at timestamp, updated_at timestamp"
+    "track_status_name string, position_at_lap_end int, ingested_at timestamp"
 )
 
 PIT_STOP_DDL = (
     "openf1_session_key int, driver_number int, lap_number int, driver_id string, constructor_id string, "
     "pit_entry_utc timestamp, pit_lane_duration_ms bigint, stop_duration_ms bigint, "
     "compound_removed string, compound_fitted string, is_tyre_change boolean, is_penalty_served boolean, "
-    "track_status_name string, position_before int, position_after int, positions_lost int, ingested_at timestamp, "
-    "updated_at timestamp"
+    "track_status_name string, position_before int, position_after int, positions_lost int, ingested_at timestamp"
 )
 
 OVERTAKE_DDL = (

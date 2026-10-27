@@ -217,7 +217,6 @@ def lap_enriched(df, stints, session_driver, intervals, pit_in, positions) -> Da
         "track_status_name",
         "position_at_lap_end",
         F.col("_ingested_at").alias("ingested_at"),
-        F.current_timestamp().alias("updated_at"),
         "_chk_n_drivers",
         "_load_id",
     )
