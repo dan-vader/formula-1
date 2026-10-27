@@ -10,20 +10,12 @@ from formula_1.gold.config import gold_table
 from formula_1.silver.config import field_names
 from formula_1.silver.transforms.dq import _engine
 
-
+# Key constraints are for Unity Catalog only; Spark's schema parser does not accept them
 _KEY_CONSTRAINTS = re.compile(r",\s*CONSTRAINT\s+\w+\s+PRIMARY KEY\s*\([^)]*\)|\s+PRIMARY KEY\b", re.IGNORECASE)
 
 
 def columns(ddl: str) -> list[str]:
     return field_names(_KEY_CONSTRAINTS.sub("", ddl))
-
-
-def _is_unique(table: str, rule: str, cols: list[str]) -> dict:
-    return {
-        "name": f"{table}_{rule}_unique",
-        "criticality": "error",
-        "check": {"function": "is_unique", "arguments": {"columns": cols}},
-    }
 
 
 def register_dimension(table: str, build: Callable[[], DataFrame], ddl: str, comment: str):
@@ -41,7 +33,7 @@ def register_dimension(table: str, build: Callable[[], DataFrame], ddl: str, com
     @dp.materialized_view(name=table, schema=ddl, comment=comment, cluster_by_auto=True)
     def _dimension():
         return dp.read(f"{table}_checked").select(*cols)
-    
+
 
 def register_fact(
     table: str,
