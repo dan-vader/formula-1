@@ -162,7 +162,7 @@ def _lap_stint(laps, stints) -> DataFrame:
         & (laps["lap_number"] >= st["lap_start"])
         & (laps["lap_number"] <= st["lap_end"])
     )
-    w = Window.partitionBy(*keys).orderBy(F.col("stint_number").desc_nulls_last())
+    w = Window.partitionBy(*keys).orderBy(F.col("stint_number").asc_nulls_last())
     return (
         laps.join(st, cond, "left")
             .drop("_st_s", "_st_d")
