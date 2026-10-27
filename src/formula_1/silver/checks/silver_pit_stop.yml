@@ -1,0 +1,20 @@
+- name: R-PIT-02
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(pit_lane_duration_ms > 0, false)"
+      msg: pit_lane_duration_ms missing or not positive
+- name: R-PIT-03
+  criticality: warn
+  check:
+    function: is_not_null
+    arguments:
+      column: stop_duration_ms
+- name: R-PIT-04
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(stop_duration_ms IS NULL OR stop_duration_ms <= pit_lane_duration_ms, false)"
+      msg: stationary time longer than pit lane time
