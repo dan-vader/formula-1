@@ -4,8 +4,9 @@ import time
 
 import pytest
 
-os.environ["TZ"] = "UTC"
-time.tzset()
+if hasattr(time, "tzset"):
+    os.environ["TZ"] = "UTC"
+    time.tzset()
 
 
 def databricks_connect_installed():
