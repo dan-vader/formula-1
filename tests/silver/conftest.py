@@ -1,6 +1,11 @@
 import importlib.util
+import os
+import time
 
 import pytest
+
+os.environ["TZ"] = "UTC"
+time.tzset()
 
 
 def databricks_connect_installed():
