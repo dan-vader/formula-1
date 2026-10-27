@@ -2,7 +2,7 @@ import re
 from pathlib import Path
 
 from formula_1.dq.bronze_checks import ERROR, WARN
-from formula_1.dq.silver_checks import FOREIGN_KEYS, SILVER_KEYS, silver_checks
+from formula_1.dq.silver_checks import FOREIGN_KEYS, SILVER_KEYS, quarantine_table, silver_checks
 from formula_1.silver.schemas import silver as silver_schemas
 
 TRANSFORMATIONS_DIR = Path(__file__).parents[2] / "src" / "formula_1_silver" / "transformations"
@@ -21,6 +21,9 @@ def registered_tables():
         tables.update(REGISTER_PATTERN.findall(path.read_text(encoding="utf-8")))
     return tables
 
+def checks_for(table):
+    return [c for c in silver_checks("c", "s") if c.table == f"c.s.{table}"]
+
 
 def test_silver_keys_cover_every_registered_table():
     assert set(SILVER_KEYS) == registered_tables()
@@ -32,7 +35,7 @@ def test_silver_checks_use_fully_qualified_table_names():
     assert checks
     for check in checks:
         assert check.table.startswith("f1_catalog.silver.silver_")
-        assert check.table in check.sql
+        assert check.table in check.sql or quarantine_table(check.table) in check.sql
 
 
 def test_silver_check_names_are_unique_per_table():
@@ -65,3 +68,27 @@ def test_foreign_key_check_counts_missing_parents():
     assert check.group == "consistency"
     assert "LEFT ANTI JOIN c.s.silver_driver" in check.sql
     assert "driver_id IS NOT NULL" in check.sql
+
+
+def test_every_table_has_completeness_and_quarantine_checks():
+    for table in SILVER_KEYS:
+        names = {check.name for check in checks_for(table)}
+        assert {"table_not_empty", "quarantine_empty", "quarantine_share_max_5pct"} <= names, table
+
+
+def test_quarantine_checks_read_matching_quarantine_table():
+    for check in checks_for("silver_race_result"):
+        if check.name.startswith("quarantine"):
+            assert "c.s.silver_quarantine_race_result" in check.sql
+
+
+def test_quarantine_share_uses_given_threshold():
+    checks = silver_checks("c", "s", max_quarantine_share=0.1)
+    share = next(c for c in checks if c.name.startswith("quarantine_share"))
+
+    assert share.name == "quarantine_share_max_10pct"
+    assert "0.1 * (bad + good)" in share.sql
+
+
+def test_session_driver_mapping_checks_use_existing_columns():
+    assert {"driver_id", "acronym_match"} <= table_columns("silver_session_driver")

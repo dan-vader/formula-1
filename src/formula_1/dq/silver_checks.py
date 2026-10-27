@@ -16,7 +16,7 @@ SILVER_KEYS = {
 }
 # (table, column, referenced table, severity)
 FOREIGN_KEYS = [
-    ("silver_race_result", "session_id", "silver_session", WARN),
+    ("silver_race_result", "session_id", "silver_session", ERROR),
     ("silver_race_result", "driver_id", "silver_driver", ERROR),
     ("silver_race_result", "constructor_id", "silver_team", ERROR),
     ("silver_race_result", "status_id", "silver_finish_status", ERROR),
@@ -26,6 +26,82 @@ FOREIGN_KEYS = [
     ("silver_session_driver", "driver_id", "silver_driver", ERROR),
     ("silver_session_driver", "constructor_id", "silver_team", ERROR),
 ]
+DEFAULT_MAX_QUARANTINE_SHARE = 0.05
+
+
+def quarantine_table(table):
+    """silver_race_result -> silver_quarantine_race_result, in the same catalog and schema."""
+    prefix, name = table.rsplit(".", 1)
+    return f"{prefix}.silver_quarantine_{name.removeprefix('silver_')}"
+
+
+def not_empty(table):
+    """failed_rows = 1 when the table has no rows: the pipeline ran but produced nothing."""
+    return Check(
+        "completeness",
+        "table_not_empty",
+        table,
+        f"""
+        SELECT CASE WHEN count(*) = 0 THEN 1 ELSE 0 END AS failed_rows
+        FROM {table}""",
+    )
+
+
+def quarantine_empty(table):
+    """failed_rows = rows in the quarantine table. A warning: a few bad source rows are expected."""
+    return Check(
+        "validity",
+        "quarantine_empty",
+        table,
+        f"""
+        SELECT count(*) AS failed_rows
+        FROM {quarantine_table(table)}""",
+        severity=WARN,
+    )
+
+
+def quarantine_share(table, max_share):
+    """failed_rows = quarantined rows when they are more than max_share of all rows, else 0."""
+    quarantine = quarantine_table(table)
+    return Check(
+        "validity",
+        f"quarantine_share_max_{round(max_share * 100)}pct",
+        table,
+        f"""
+        WITH counts AS (
+            SELECT
+                (SELECT count(*) FROM {quarantine}) AS bad,
+                (SELECT count(*) FROM {table}) AS good
+        )
+        SELECT CASE WHEN bad > {max_share} * (bad + good) THEN bad ELSE 0 END AS failed_rows
+        FROM counts""",
+    )
+
+
+def unmatched_session_drivers(table):
+    """failed_rows = OpenF1 drivers that were not mapped to a Jolpica driver (R-MAP-01 keeps them as a warning)."""
+    return Check(
+        "consistency",
+        "session_driver_mapped",
+        table,
+        f"""
+        SELECT count_if(driver_id IS NULL) AS failed_rows
+        FROM {table}""",
+        severity=WARN,
+    )
+
+
+def acronym_mismatches(table):
+    """failed_rows = mapped drivers whose OpenF1 acronym differs from the Jolpica code (R-MAP-02)."""
+    return Check(
+        "consistency",
+        "acronym_matches_jolpica",
+        table,
+        f"""
+        SELECT count_if(acronym_match = false) AS failed_rows
+        FROM {table}""",
+        severity=WARN,
+    )
 
 
 def foreign_key(table, column, ref_table, severity=ERROR):
@@ -42,17 +118,28 @@ def foreign_key(table, column, ref_table, severity=ERROR):
     )
 
 
-def silver_checks(catalog, schema):
+def silver_checks(catalog, schema, max_quarantine_share=DEFAULT_MAX_QUARANTINE_SHARE):
     """All silver checks with fully qualified table names."""
 
     def fq(name):
         return f"{catalog}.{schema}.{name}"
 
-    checks = [unique_key(fq(table), key) for table, key in SILVER_KEYS.items()]
+    checks = []
+    for table, key in SILVER_KEYS.items():
+        checks += [
+            not_empty(fq(table)),
+            unique_key(fq(table), key),
+            quarantine_empty(fq(table)),
+            quarantine_share(fq(table), max_quarantine_share),
+        ]
     checks.append(unique_key(fq("silver_session"), ("session_id",)))
     checks.append(unique_key(fq("silver_session"), ("openf1_session_key",)))
     checks += [
         foreign_key(fq(table), column, fq(ref_table), severity)
         for table, column, ref_table, severity in FOREIGN_KEYS
+    ]
+    checks += [
+        unmatched_session_drivers(fq("silver_session_driver")),
+        acronym_mismatches(fq("silver_session_driver")),
     ]
     return checks
