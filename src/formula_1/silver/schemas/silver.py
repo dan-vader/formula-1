@@ -80,3 +80,8 @@ DQ_METRICS_DDL = (
     "rows_deduplicated bigint, rows_filtered_out bigint, rows_warned bigint, "
     "warnings_by_rule map<string,bigint>, reconciles boolean, measured_at timestamp"
 )
+
+DQ_RECONCILIATION_DDL = (
+    "check_id string, scope_key string, left_name string, left_value bigint, right_name string, "
+    "right_value bigint, difference bigint, passed boolean, measured_at timestamp"
+)
