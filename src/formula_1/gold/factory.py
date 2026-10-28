@@ -10,7 +10,6 @@ from formula_1.gold.config import gold_table, silver
 from formula_1.silver.config import field_names
 from formula_1.silver.transforms.dq import _engine
 
-# Key constraints are for Unity Catalog only; Spark's schema parser does not accept them
 _KEY_CONSTRAINTS = re.compile(r",\s*CONSTRAINT\s+\w+\s+PRIMARY KEY\s*\([^)]*\)|\s+PRIMARY KEY\b", re.IGNORECASE)
 
 
@@ -63,7 +62,8 @@ def register_fact(
     @dp.expect_or_fail("unique_grain", "num_entries = 1")
     def _grain_check():
         return dp.read(table).groupBy(*grain).agg(F.count(F.lit(1)).alias("num_entries"))
-    
+
+
 def register_reconciliation(fact: str, silver_table: str, kept: str):
     @dp.materialized_view(name=f"{fact}_reconciliation", private=True)
     @dp.expect_or_fail("no_rows_lost", "fact_rows = silver_rows_kept")
@@ -75,5 +75,3 @@ def register_reconciliation(fact: str, silver_table: str, kept: str):
         )
         target = dp.read(fact).agg(F.count(F.lit(1)).alias("fact_rows"))
         return source.crossJoin(target)
-    
-    

@@ -56,8 +56,8 @@ def dim_team() -> DataFrame:
     )
     return with_unknown_member(dim, "team_sk", is_current=False)
 
+
 def lookup_team_sk(facts: DataFrame, dim_team: DataFrame, date_col: str) -> DataFrame:
-    """SCD2 lookup: the team version whose interval contains the date; UNKNOWN_SK if none."""
     versions = F.broadcast(
         dim_team.where(F.col("team_sk") != UNKNOWN_SK).select(
             "team_sk", F.col("constructor_id").alias("_constructor_id"), "effective_from", "effective_to"
