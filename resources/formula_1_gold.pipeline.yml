@@ -1,0 +1,22 @@
+resources:
+  pipelines:
+    formula_1_gold:
+      name: formula_1_gold
+      catalog: ${var.catalog}
+      schema: ${var.gold_schema}
+      serverless: true
+      root_path: "../src/formula_1_gold"
+
+      libraries:
+        - glob:
+            include: ../src/formula_1_gold/transformations/**
+
+      environment:
+        dependencies:
+          - ../dist/*.whl
+          - databricks-labs-dqx==0.17.0
+
+      configuration:
+        formula_1.catalog: ${var.catalog}
+        formula_1.silver_schema: ${var.silver_schema}
+        formula_1.seasons: ${var.jolpica_seasons}
