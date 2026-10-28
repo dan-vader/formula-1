@@ -1,0 +1,14 @@
+- name: G-TRK-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - track_status_sk
+- name: G-TRK-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - track_status_name

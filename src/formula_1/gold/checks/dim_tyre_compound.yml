@@ -1,0 +1,14 @@
+- name: G-TYRE-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - tyre_compound_sk
+- name: G-TYRE-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - compound_name
