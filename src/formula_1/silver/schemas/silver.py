@@ -69,3 +69,8 @@ OVERTAKE_DDL = (
     "openf1_session_key int, overtake_ts timestamp, overtaking_driver_number int, "
     "overtaken_driver_number int, position int, ingested_at timestamp"
 )
+
+QUARANTINE_DDL = (
+    "quarantine_id string, source_table string, record_key string, failed_rules array<string>, "
+    "payload string, source_load_id string, source_ingested_at timestamp"
+)
