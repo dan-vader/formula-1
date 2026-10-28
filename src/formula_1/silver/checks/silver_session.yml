@@ -1,0 +1,28 @@
+- name: R-SES-01
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(openf1_session_key IS NOT NULL AND season IS NOT NULL AND round IS NOT NULL AND session_id IS NOT NULL, false)"
+      msg: session key, season or round is missing
+- name: R-SES-02
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(_chk_schedule_matches, false)"
+      msg: not exactly one Jolpica schedule row matches this OpenF1 session (year, type, date +-1 day)
+- name: R-SES-03
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(circuit_type IN ('Permanent', 'Temporary – Street', 'Temporary – Road'), false)"
+      msg: unknown circuit_type
+- name: R-SES-05
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(session_end_utc > session_start_utc, false)"
+      msg: session_end_utc is not after session_start_utc

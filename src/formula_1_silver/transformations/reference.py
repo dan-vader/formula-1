@@ -1,7 +1,10 @@
+from pyspark import pipelines as dp
+
 from formula_1.silver import factory
 from formula_1.silver.schemas.silver import DRIVER_DDL, FINISH_STATUS_DDL, TEAM_DDL
 from formula_1.silver.transforms import reference as R
 from formula_1.silver.transforms import team as T
+
 
 factory.register(
     "silver_finish_status",
@@ -27,7 +30,7 @@ factory.register(
     "silver_team",
     parsed=T.team_parsed,
     deduped=T.team_deduped,
-    enriched=T.team_enriched,
+    enriched=lambda df: T.team_enriched(df, dp.read("silver_session_driver"), dp.read("silver_session")),
     keys=["constructor_id", "season"],
     ddl=TEAM_DDL,
     comment="Constructor per season with power unit supplier",

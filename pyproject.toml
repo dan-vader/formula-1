@@ -25,6 +25,13 @@ dev = [
     "ipykernel",
     "databricks-labs-dqx==0.17.0",
 ]
+spark-tests = [
+    "pytest",
+    "pyspark>=4.0,<4.1",
+    "chispa",
+    "databricks-labs-dqx==0.17.0",
+    "pandas",
+]
 
 [build-system]
 requires = ["hatchling"]

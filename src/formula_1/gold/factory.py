@@ -10,7 +10,6 @@ from formula_1.gold.config import gold_table
 from formula_1.silver.config import field_names
 from formula_1.silver.transforms.dq import _engine
 
-# Key constraints are for Unity Catalog only; Spark's schema parser does not accept them
 _KEY_CONSTRAINTS = re.compile(r",\s*CONSTRAINT\s+\w+\s+PRIMARY KEY\s*\([^)]*\)|\s+PRIMARY KEY\b", re.IGNORECASE)
 
 
