@@ -74,8 +74,8 @@ def test_first_result_gets_all_keys_and_full_points_as_change(spark, use_silver)
         "team_sk": 102,
         "grid_position": 2,
         "classified_position": 1,
-        "points_change": Decimal("25"),
-        "points": Decimal("25"),
+        "points_change": Decimal(25),
+        "points": Decimal(25),
         "overtakes_made": 2,
     }
 
@@ -90,8 +90,8 @@ def test_penalty_after_race_creates_second_version_with_negative_change(spark, u
 
     summary = [(r["classification_version"], r["classified_position"], r["points"], r["points_change"]) for r in rows]
     assert summary == [
-        (1, 1, Decimal("25"), Decimal("25")),
-        (2, 2, Decimal("18"), Decimal("-7")),
+        (1, 1, Decimal(25), Decimal(25)),
+        (2, 2, Decimal(18), Decimal(-7)),
     ]
 
 
@@ -104,7 +104,7 @@ def test_sum_of_points_changes_equals_final_points(spark, use_silver):
 
     rows = versions_of(spark, build(spark, use_silver, results), "norris")
 
-    assert sum(r["points_change"] for r in rows) == rows[-1]["points"] == Decimal("19")
+    assert sum(r["points_change"] for r in rows) == rows[-1]["points"] == Decimal(19)
 
 
 def test_versions_are_counted_per_driver_in_each_race(spark, use_silver):

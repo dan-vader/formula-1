@@ -13,8 +13,6 @@ def known_rows(dim, sk_col, name_col):
     return {row[name_col]: row.asDict() for row in rows}
 
 
-# шини
-
 def test_tyre_compound_has_five_tyres_plus_unknown(spark):
     dim = dim_tyre_compound()
 
@@ -45,8 +43,6 @@ def test_fact_compound_finds_its_tyre_row(spark, compound):
 def test_gold_knows_every_tyre_that_silver_lets_through():
     assert {name for name, _, _ in TYRE_COMPOUNDS} == set(COMPOUNDS)
 
-
-# стан траси
 
 def test_track_status_has_four_statuses_plus_unknown(spark):
     dim = dim_track_status()

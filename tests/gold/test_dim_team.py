@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from itertools import pairwise
 
 import pytest
 from pyspark.sql import functions as F
@@ -50,8 +51,6 @@ def teams(spark, monkeypatch):
     return dim_team()
 
 
-# версії команд
-
 def test_team_gets_new_version_when_engine_supplier_changes(teams):
     old, new = versions_of(teams, "mclaren")
 
@@ -90,7 +89,7 @@ def test_only_latest_version_of_active_team_is_current(teams):
 def test_versions_of_team_have_no_gaps_or_overlaps(teams):
     for team in ["mclaren", "williams", "racing_point", "aston_martin"]:
         rows = versions_of(teams, team)
-        for older, newer in zip(rows, rows[1:]):
+        for older, newer in pairwise(rows):
             assert older["effective_to"] + timedelta(days=1) == newer["effective_from"], team
 
 
@@ -128,8 +127,6 @@ def test_unknown_team_is_not_current(teams):
     assert row["constructor_id"] == "Unknown"
     assert row["is_current"] is False
 
-
-# lookup_team_sk
 
 def sk_of(dim, constructor_id, effective_from):
     return versions(dim)[(constructor_id, effective_from)]["team_sk"]
