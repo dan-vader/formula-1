@@ -24,6 +24,7 @@ factory.register_fact(
         "grid_position_valid": "grid_position IS NULL OR grid_position >= 1",
         "classified_position_valid": "classified_position IS NULL OR classified_position >= 1",
         "points_not_negative": "points >= 0",
+        "overtakes_not_negative": "overtakes_made IS NULL OR overtakes_made >= 0",
     },
 )
 

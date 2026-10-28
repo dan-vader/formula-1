@@ -1,11 +1,8 @@
 from pyspark import pipelines as dp
 
-from pyspark.sql import functions as F
-
 from formula_1.gold import factory
 from formula_1.gold.schemas.gold import FACT_LAP_DDL
 from formula_1.gold.transforms.fact_lap import fact_lap
-from formula_1.gold.config import silver
 
 factory.register_fact(
     "fact_transaction_lap",
@@ -29,15 +26,4 @@ factory.register_fact(
     },
 )
 
-
-
-@dp.materialized_view(name="fact_transaction_lap_reconciliation", private=True)
-@dp.expect_or_fail("no_laps_lost", "fact_laps = silver_laps_with_driver")
-@dp.expect("all_laps_have_driver", "silver_laps_without_driver = 0")
-def _lap_reconciliation():
-    source = silver("silver_lap").agg(
-        F.count_if(F.col("driver_id").isNotNull()).alias("silver_laps_with_driver"),
-        F.count_if(F.col("driver_id").isNull()).alias("silver_laps_without_driver"),
-    )
-    target = dp.read("fact_transaction_lap").agg(F.count(F.lit(1)).alias("fact_laps"))
-    return source.crossJoin(target)
+factory.register_reconciliation("fact_transaction_lap", "silver_lap", kept="driver_id IS NOT NULL")

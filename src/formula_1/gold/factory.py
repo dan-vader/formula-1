@@ -6,7 +6,7 @@ from databricks.labs.dqx.config import FileChecksStorageConfig
 from pyspark import pipelines as dp
 from pyspark.sql import DataFrame, functions as F
 
-from formula_1.gold.config import gold_table
+from formula_1.gold.config import gold_table, silver
 from formula_1.silver.config import field_names
 from formula_1.silver.transforms.dq import _engine
 
@@ -62,3 +62,16 @@ def register_fact(
     @dp.expect_or_fail("unique_grain", "num_entries = 1")
     def _grain_check():
         return dp.read(table).groupBy(*grain).agg(F.count(F.lit(1)).alias("num_entries"))
+
+
+def register_reconciliation(fact: str, silver_table: str, kept: str):
+    @dp.materialized_view(name=f"{fact}_reconciliation", private=True)
+    @dp.expect_or_fail("no_rows_lost", "fact_rows = silver_rows_kept")
+    @dp.expect("no_rows_excluded", "silver_rows_excluded = 0")
+    def _reconciliation():
+        source = silver(silver_table).agg(
+            F.count_if(F.expr(kept)).alias("silver_rows_kept"),
+            F.count_if(~F.expr(kept)).alias("silver_rows_excluded"),
+        )
+        target = dp.read(fact).agg(F.count(F.lit(1)).alias("fact_rows"))
+        return source.crossJoin(target)
