@@ -131,16 +131,10 @@ def silver_schema_drift():
     return result
 
 
-@dp.temporary_view(name="openf1_stream_checked")
-def openf1_stream_checked():
-    return stream.stream_checked()
-
-
 @dp.materialized_view(
     name="silver_quarantine_openf1_stream",
     schema=QUARANTINE_DDL,
     comment="Malformed openf1_stream_raw messages (R-STR-01)"
 )
 def silver_quarantine_openf1_stream():
-    return stream.stream_quarantine(dp.read("openf1_stream_checked"))
-
+    return stream.stream_quarantine()
