@@ -53,3 +53,9 @@ def stream_records(endpoint, record_ddl) -> DataFrame:
     return parsed.select("records.*", *config.OPENF1_TECH)
 
 
+def with_stream(batch, endpoint, record_ddl) -> DataFrame:
+    stream = stream_records(endpoint, record_ddl)
+    return (
+        batch.withColumn("_is_batch", F.lit(True))
+            .unionByName(stream.withColumn("_is_batch", F.lit(False)))
+    )

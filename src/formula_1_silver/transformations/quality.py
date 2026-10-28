@@ -7,7 +7,7 @@ from formula_1.silver.schemas.silver import (
     DQ_RECONCILIATION_DDL,
     SCHEMA_DRIFT_DDL
 )
-from formula_1.silver.transforms import metrics, reconcile, drift
+from formula_1.silver.transforms import metrics, reconcile, drift, stream
 from formula_1.silver.schemas import jolpica as J, openf1 as O
 
 OPENF1_TABLES = {
@@ -47,9 +47,12 @@ OPENF1_SCHEMAS = [
     comment="Rows rejected by error-level checks, from every silver table"
 )
 def silver_quarantine():
+    names = [f"silver_quarantine_{table.removeprefix('silver_')}" for table in config.QUARANTINED_TABLES]
+    names.append("silver_quarantine_openf1_stream")
+
     result = None
-    for table in config.QUARANTINED_TABLES:
-        part = dp.read(f"silver_quarantine_{table.removeprefix('silver_')}")
+    for name in names:
+        part = dp.read(name)
         result = part if result is None else result.unionByName(part)
     return result
 
@@ -76,6 +79,10 @@ def silver_dq_metrics():
     return result
 
 
+def _batch_only(df):
+    return df.where("_is_batch") if "_is_batch" in df.columns else df
+
+
 @dp.materialized_view(
     name="silver_dq_reconciliation",
     schema=DQ_RECONCILIATION_DDL,
@@ -83,7 +90,7 @@ def silver_dq_metrics():
 )
 def silver_dq_reconciliation():
     parts = [
-        reconcile.record_count(config.bronze(bronze), dp.read(f"{table}_parsed"), table)
+        reconcile.record_count(config.bronze(bronze), _batch_only(dp.read(f"{table}_parsed")), table)
         for bronze, table in OPENF1_TABLES.items()
     ]
     parts.append(reconcile.points_total(dp.read("silver_race_result"), dp.read("silver_race_result_parsed")))
@@ -122,3 +129,18 @@ def silver_schema_drift():
     for part in parts[1:]:
         result = result.unionByName(part)
     return result
+
+
+@dp.temporary_view(name="openf1_stream_checked")
+def openf1_stream_checked():
+    return stream.stream_checked()
+
+
+@dp.materialized_view(
+    name="silver_quarantine_openf1_stream",
+    schema=QUARANTINE_DDL,
+    comment="Malformed openf1_stream_raw messages (R-STR-01)"
+)
+def silver_quarantine_openf1_stream():
+    return stream.stream_quarantine(dp.read("openf1_stream_checked"))
+

@@ -1,0 +1,7 @@
+- name: R-STR-01
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(endpoint IS NOT NULL AND session_key IS NOT NULL AND event_time IS NOT NULL, false)"
+      msg: stream message without endpoint, session_key or event_time
