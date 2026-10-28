@@ -74,3 +74,9 @@ QUARANTINE_DDL = (
     "quarantine_id string, source_table string, record_key string, failed_rules array<string>, "
     "payload string, source_load_id string, source_ingested_at timestamp"
 )
+
+DQ_METRICS_DDL = (
+    "table_name string, rows_in bigint, rows_out bigint, rows_quarantined bigint, "
+    "rows_deduplicated bigint, rows_filtered_out bigint, rows_warned bigint, "
+    "warnings_by_rule map<string,bigint>, reconciles boolean, measured_at timestamp"
+)
