@@ -1,5 +1,5 @@
-from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
+from pyspark.sql import DataFrame, Window
 
 from formula_1.silver import config
 from formula_1.silver.schemas import jolpica as J
@@ -16,7 +16,7 @@ def team_parsed() -> DataFrame:
     )
 
 
-def team_deduped(df: DataFrame) -> DataFrame:
+def team_deduped(df) -> DataFrame:
     keyed = df.withColumn("constructor_id", F.lower(F.trim("c.constructorId"))).withColumn(
         "season", _try_cast("_season", "int")
     )
@@ -44,17 +44,30 @@ def _team_lineage() -> DataFrame:
     return snapshot.csv_latest(lineage, ["constructor_id"]).select("constructor_id", "team_lineage")
 
 
-def team_enriched(df: DataFrame) -> DataFrame:
+def _team_colour(session_driver, session) -> DataFrame:
+    sd = session_driver.where("constructor_id IS NOT NULL AND team_colour IS NOT NULL")
+    s = session.select("openf1_session_key", "season", "session_start_utc")
+    w = Window.partitionBy("constructor_id", "season").orderBy(F.col("session_start_utc").desc())
+    return (
+        sd.join(s, "openf1_session_key")
+            .withColumn("_rn", F.row_number().over(w))
+            .where("_rn = 1")
+            .select("constructor_id", "season", "team_colour")
+    )
+
+
+def team_enriched(df, session_driver, session) -> DataFrame:
     return (
         df.join(_supplier(), ["constructor_id", "season"], "left")
         .join(_team_lineage(), "constructor_id", "left")
+        .join(_team_colour(session_driver, session), ["constructor_id", "season"], "left")
         .select(
             "constructor_id",
             "season",
             "power_unit_supplier",
             F.trim("c.name").alias("team_name"),
             "team_lineage",
-            F.lit(None).cast("string").alias("team_colour"),  # TODO feat/silver-sessions-results
+            "team_colour",
             F.col("_ingested_at").alias("ingested_at"),
             "_load_id",
         )

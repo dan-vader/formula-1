@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = "==3.12.*"
 
 [[package]]
@@ -365,6 +365,11 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+spark-tests = [
+    { name = "chispa" },
+    { name = "pyspark" },
+    { name = "pytest" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -386,6 +391,11 @@ dev = [
     { name = "ipykernel" },
     { name = "pytest" },
     { name = "ruff" },
+]
+spark-tests = [
+    { name = "chispa" },
+    { name = "pyspark", specifier = ">=4.0,<4.1" },
+    { name = "pytest" },
 ]
 
 [[package]]
@@ -915,6 +925,15 @@ wheels = [
 crypto = [
     { name = "cryptography" },
 ]
+
+[[package]]
+name = "pyspark"
+version = "4.0.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "py4j" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/9a/c8/27b5316543a4d724efef4ecc1cfcb42a9afcb8af33cfdff989164b9a4487/pyspark-4.0.4.tar.gz", hash = "sha256:7e119366364d48e3cda1b1efd1ebc6cd672949500667c9cabbeef858daba700f", size = 434312230, upload-time = "2026-07-15T11:15:10.721Z" }
 
 [[package]]
 name = "pytest"
