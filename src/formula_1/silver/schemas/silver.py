@@ -85,3 +85,8 @@ DQ_RECONCILIATION_DDL = (
     "check_id string, scope_key string, left_name string, left_value bigint, right_name string, "
     "right_value bigint, difference bigint, passed boolean, measured_at timestamp"
 )
+
+SCHEMA_DRIFT_DDL = (
+    "source_table string, load_id string, unexpected_keys array<string>, "
+    "missing_keys array<string>, has_drift boolean, measured_at timestamp"
+)

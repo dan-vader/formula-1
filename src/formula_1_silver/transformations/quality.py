@@ -4,9 +4,11 @@ from formula_1.silver import config
 from formula_1.silver.schemas.silver import (
     QUARANTINE_DDL,
     DQ_METRICS_DDL,
-    DQ_RECONCILIATION_DDL
+    DQ_RECONCILIATION_DDL,
+    SCHEMA_DRIFT_DDL
 )
-from formula_1.silver.transforms import metrics, reconcile
+from formula_1.silver.transforms import metrics, reconcile, drift
+from formula_1.silver.schemas import jolpica as J, openf1 as O
 
 OPENF1_TABLES = {
     "openf1_stints_raw": "silver_stint",
@@ -25,6 +27,18 @@ JOLPICA_TABLES = {
     "jolpica_constructors_raw": ["_season"],
     "jolpica_status_raw": ["_season"],
 }
+
+OPENF1_SCHEMAS = [
+    ("openf1_laps_raw", O.LAPS, O.LAPS_IGNORED),
+    ("openf1_pit_raw", O.PIT, set()),
+    ("openf1_stints_raw", O.STINTS, set()),
+    ("openf1_position_raw", O.POSITION, set()),
+    ("openf1_race_control_raw", O.RACE_CONTROL, O.RACE_CONTROL_IGNORED),
+    ("openf1_drivers_raw", O.DRIVERS, set()),
+    ("openf1_overtakes_raw", O.OVERTAKES, set()),
+    ("openf1_sessions_raw", O.SESSIONS, O.SESSIONS_IGNORED),
+    ("openf1_meetings_raw", O.MEETINGS, O.MEETINGS_IGNORED),
+]
 
 
 @dp.materialized_view(
@@ -79,6 +93,30 @@ def silver_dq_reconciliation():
     ))
     for table, keys in JOLPICA_TABLES.items():
         parts.append(reconcile.pages_complete(config.bronze(table), keys, table))
+
+    result = parts[0]
+    for part in parts[1:]:
+        result = result.unionByName(part)
+    return result
+
+
+@dp.materialized_view(
+    name="silver_schema_drift",
+    schema=SCHEMA_DRIFT_DDL,
+    comment="Payload keys of the newest Bronze load vs the explicit schemas"
+)
+def silver_schema_drift():
+    parts = [
+        drift.schema_drift(config.bronze(table), table, "$[0]", drift.expected_keys(ddl, ignored))
+        for table, ddl, ignored in OPENF1_SCHEMAS
+    ]
+    for table, field in [("jolpica_race_results_raw", "Results"), ("jolpica_sprint_results_raw", "SprintResults")]:
+        parts.append(drift.schema_drift(
+            config.bronze(table),
+            table,
+            f"$.MRData.RaceTable.Races[0].{field}[0]",
+            drift.expected_keys(J.RESULT_REC, J.KNOWN_IGNORED.get(table, set()))
+        ))
 
     result = parts[0]
     for part in parts[1:]:
