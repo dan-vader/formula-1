@@ -79,7 +79,7 @@ def test_lap_deduped_keeps_newest_load_per_lap(spark):
     df = spark.createDataFrame(
         [raw_lap(lap="1", load_id=L1), raw_lap(lap="1", load_id=L2), raw_lap(lap="2", load_id=L1)],
         RAW_LAP_SCHEMA,
-    )
+    ).selectExpr("*", "true AS _is_batch")
 
     result = lap_deduped(df)
 

@@ -35,7 +35,7 @@ def pit_deduped(df) -> DataFrame:
             .withColumn("_d", _try_cast("driver_number", "int"))
             .withColumn("_l", _try_cast("lap_number", "int"))
     )
-    return dedup.dedup_latest(keyed, ["_s", "_d", "_l"])
+    return dedup.dedup_batch_over_stream(keyed, ["_s", "_d", "_l"])
 
 
 # Typed pit columns

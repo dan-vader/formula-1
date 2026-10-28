@@ -13,7 +13,8 @@ from formula_1.silver.transforms.race_control import (
 
 RAW_SCHEMA = (
     "session_key string, date string, category string, flag string, scope string, "
-    "driver_number string, lap_number string, message string, _load_id string, _ingested_at timestamp"
+    "driver_number string, lap_number string, message string, _load_id string, _ingested_at timestamp, "
+    "_is_batch boolean"
 )
 EVENTS_SCHEMA = "openf1_session_key int, event_ts timestamp, event_type string, ingested_at timestamp"
 SESSION_END_SCHEMA = "openf1_session_key int, session_end_utc timestamp"
@@ -32,8 +33,8 @@ def at(hour, minute):
 
 SESSION_END = at(15, 0)
 
-def raw_event(message, load_id=L1, category="SafetyCar", flag=None, date="2025-12-07T13:05:00+00:00"):
-    return ("9839", date, category, flag, "Track", None, "12", message, load_id, INGESTED)
+def raw_event(message, load_id=L1, category="SafetyCar", flag=None, date="2025-12-07T13:05:00+00:00", is_batch=True):
+    return ("9839", date, category, flag, "Track", None, "12", message, load_id, INGESTED, is_batch)
 
 
 @pytest.mark.parametrize(
