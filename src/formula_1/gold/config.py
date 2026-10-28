@@ -9,6 +9,12 @@ def silver(table: str) -> DataFrame:
     return _spark().read.table(f"{catalog}.{schema}.{table}")
 
 
+def gold_table(table: str) -> str:
+    catalog = _spark().conf.get("formula_1.catalog")
+    schema = _spark().conf.get("formula_1.gold_schema")
+    return f"{catalog}.{schema}.{table}"
+
+
 def seasons() -> list[int]:
     raw = _spark().conf.get("formula_1.seasons")
     return sorted(int(s) for s in raw.split(","))

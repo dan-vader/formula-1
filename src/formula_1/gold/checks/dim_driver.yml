@@ -1,0 +1,14 @@
+- name: G-DRV-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - driver_sk
+- name: G-DRV-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - driver_id

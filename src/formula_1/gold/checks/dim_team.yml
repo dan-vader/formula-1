@@ -1,0 +1,15 @@
+- name: G-TEAM-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - team_sk
+- name: G-TEAM-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - constructor_id
+        - effective_from

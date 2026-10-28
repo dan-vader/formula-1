@@ -1,0 +1,14 @@
+- name: G-FIN-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - finish_status_sk
+- name: G-FIN-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - status_id

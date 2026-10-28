@@ -1,7 +1,7 @@
 from pyspark.sql import DataFrame, Window, functions as F
 
 from formula_1.gold.config import silver
-from formula_1.gold.surrogate import sk, with_unknown_member
+from formula_1.gold.surrogate import UNKNOWN_SK, sk, with_unknown_member
 
 OPEN_END = "9999-12-31"
 
@@ -55,3 +55,19 @@ def dim_team() -> DataFrame:
         )
     )
     return with_unknown_member(dim, "team_sk", is_current=False)
+
+
+def lookup_team_sk(facts: DataFrame, dim_team: DataFrame, date_col: str) -> DataFrame:
+    versions = F.broadcast(
+        dim_team.where(F.col("team_sk") != UNKNOWN_SK).select(
+            "team_sk", F.col("constructor_id").alias("_constructor_id"), "effective_from", "effective_to"
+        )
+    )
+    on = (facts["constructor_id"] == versions["_constructor_id"]) & facts[date_col].between(
+        versions["effective_from"], versions["effective_to"]
+    )
+    return (
+        facts.join(versions, on, "left")
+        .withColumn("team_sk", F.coalesce("team_sk", F.lit(UNKNOWN_SK)))
+        .drop("_constructor_id", "effective_from", "effective_to")
+    )

@@ -1,0 +1,15 @@
+- name: G-PITF-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - pit_stop_flags_sk
+- name: G-PITF-02
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - is_tyre_change
+        - is_penalty_served

@@ -1,0 +1,7 @@
+- name: G-SES-01
+  criticality: error
+  check:
+    function: is_unique
+    arguments:
+      columns:
+        - session_sk
