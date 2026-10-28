@@ -1,0 +1,7 @@
+- name: R-RC-02
+  criticality: error
+  check:
+    function: is_not_null
+    arguments:
+      column: event_ts
+

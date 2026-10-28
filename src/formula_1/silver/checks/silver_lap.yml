@@ -1,0 +1,54 @@
+- name: R-LAP-01
+  criticality: warn
+  check:
+    function: is_not_null
+    arguments:
+      column: driver_id
+- name: R-LAP-02
+  criticality: error
+  check:
+    function: is_not_less_than
+    arguments:
+      column: lap_number
+      limit: 1
+      allow_nulls: false
+- name: R-LAP-03
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(lap_duration_ms IS NULL OR lap_duration_ms > 0, false)"
+      msg: lap_duration_ms must be NULL or greater than 0
+- name: R-LAP-04
+  criticality: warn
+  check:
+    function: is_not_null
+    arguments:
+      column: lap_duration_ms
+- name: R-LAP-05
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(lap_start_utc IS NULL OR lap_end_utc IS NULL OR lap_end_utc >= lap_start_utc, false)"
+      msg: lap_end_utc before lap_start_utc
+- name: R-LAP-06
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(compound IS NULL OR compound IN ('SOFT','MEDIUM','HARD','INTERMEDIATE','WET'), false)"
+      msg: unknown tyre compound
+- name: R-LAP-08
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(position_at_lap_end IS NULL OR position_at_lap_end BETWEEN 1 AND _chk_n_drivers, false)"
+      msg: position_at_lap_end outside 1..number of drivers
+- name: R-LAP-09
+  criticality: warn
+  check:
+    function: is_not_null
+    arguments:
+      column: lap_start_utc

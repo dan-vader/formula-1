@@ -13,6 +13,12 @@ SILVER_KEYS = {
     "silver_session_driver": ("openf1_session_key", "driver_number"),
     "silver_race_result": ("session_id", "driver_id", "snapshot_ts"),
     "silver_jolpica_pit_stop": ("session_id", "driver_id", "stop_number"),
+    "silver_stint": ("openf1_session_key", "driver_number", "stint_number"),
+    "silver_lap": ("openf1_session_key", "driver_number", "lap_number"),
+    "silver_pit_stop": ("openf1_session_key", "driver_number", "lap_number"),
+    "silver_overtake": ("openf1_session_key", "overtake_ts", "overtaking_driver_number", "overtaken_driver_number"),
+    "silver_race_control": ("openf1_session_key", "event_ts", "event_hash"),
+    "silver_track_status_interval": ("openf1_session_key", "interval_start_utc"),
 }
 # (table, column, referenced table, severity)
 FOREIGN_KEYS = [
@@ -25,6 +31,12 @@ FOREIGN_KEYS = [
     ("silver_session_driver", "session_id", "silver_session", ERROR),
     ("silver_session_driver", "driver_id", "silver_driver", ERROR),
     ("silver_session_driver", "constructor_id", "silver_team", ERROR),
+    ("silver_stint", "openf1_session_key", "silver_session", ERROR),
+    ("silver_lap", "openf1_session_key", "silver_session", ERROR),
+    ("silver_pit_stop", "openf1_session_key", "silver_session", ERROR),
+    ("silver_overtake", "openf1_session_key", "silver_session", ERROR),
+    ("silver_race_control", "openf1_session_key", "silver_session", ERROR),
+    ("silver_track_status_interval", "openf1_session_key", "silver_session", ERROR),
 ]
 DEFAULT_MAX_QUARANTINE_SHARE = 0.05
 # reloaded on every Jolpica / OpenF1 load, so their latest ingested_at shows how fresh silver is
@@ -34,6 +46,8 @@ FINISHED_SESSION_GRACE_DAYS = 3  # sources may still be updating a session that 
 SESSION_CHILDREN = [
     ("silver_session_driver", "openf1_session_key"),
     ("silver_race_result", "session_id"),
+    ("silver_lap", "openf1_session_key"),
+    ("silver_stint", "openf1_session_key"),
 ]
 
 

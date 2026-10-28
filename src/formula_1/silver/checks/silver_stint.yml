@@ -1,0 +1,14 @@
+- name: R-STI-01
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(lap_end >= lap_start - 1 AND lap_start >= 1, false)"
+      msg: lap_end before lap_start, or lap_start below 1
+- name: R-STI-02
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(_chk_compound_ok, false)"
+      msg: unknown tyre compound (value was set to NULL)
