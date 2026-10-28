@@ -12,3 +12,10 @@
     arguments:
       columns:
         - track_status_name
+- name: G-TRK-03
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(track_status_sk = -1 OR is_neutralised = (track_status_name <> 'Green'), false)"
+      msg: only Green may be not neutralised
