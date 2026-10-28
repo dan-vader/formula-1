@@ -1,0 +1,43 @@
+resources:
+  jobs:
+    formula_1_dq_silver:
+      name: formula_1_dq_silver
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.silver_schema}
+        - name: results_table
+          default: ${var.catalog}.${var.bronze_schema}.dq_results
+        - name: max_quarantine_share
+          default: "0.05"
+        - name: max_age_hours
+          default: "48"
+
+      tasks:
+        - task_key: run_silver_checks
+          environment_key: default
+          timeout_seconds: 1800
+          spark_python_task:
+            python_file: ../src/dq/run_silver_checks.py
+            parameters:
+              - --catalog
+              - "{{job.parameters.catalog}}"
+              - --schema
+              - "{{job.parameters.schema}}"
+              - --results-table
+              - "{{job.parameters.results_table}}"
+              - --max-quarantine-share
+              - "{{job.parameters.max_quarantine_share}}"
+              - --max-age-hours
+              - "{{job.parameters.max_age_hours}}"
+              - --run-id
+              - "{{job.run_id}}"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "5"
+            dependencies:
+              - ../dist/*.whl
