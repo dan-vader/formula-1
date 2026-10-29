@@ -53,7 +53,11 @@ def stint_enriched(df) -> DataFrame:
 # silver_lap
 def lap_parsed() -> DataFrame:
     snap = snapshot.latest_valid_openf1(config.bronze("openf1_laps_raw"))
-    return parse.explode_openf1(snap, O.LAPS)
+    return parse.with_stream(
+        batch=parse.explode_openf1(snap, O.LAPS),
+        endpoint="laps",
+        record_ddl=O.LAPS
+    )
 
 
 def lap_filtered(df, sessions) -> DataFrame:
@@ -71,7 +75,7 @@ def lap_deduped(df) -> DataFrame:
             .withColumn("_d", _try_cast("driver_number", "int"))
             .withColumn("_l", _try_cast("lap_number", "int"))
     )
-    return dedup.dedup_latest(keyed, ["_s", "_d", "_l"])
+    return dedup.dedup_batch_over_stream(keyed, ["_s", "_d", "_l"])
 
 
 def _pit_in_laps() -> DataFrame:

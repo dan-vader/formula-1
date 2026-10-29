@@ -72,7 +72,7 @@ def test_pit_deduped_keeps_newest_load_per_lap(spark):
     df = spark.createDataFrame(
         [raw_pit(lap="20", load_id=L1), raw_pit(lap="20", load_id=L2), raw_pit(lap="41", load_id=L1)],
         RAW_PIT_SCHEMA,
-    )
+    ).selectExpr("*", "true AS _is_batch")
 
     result = pit_deduped(df)
 

@@ -32,10 +32,13 @@ def event_type(category: Column, flag: Column, message: Column) -> Column:
 
 
 # silver_race_control
-# TODO: union with the OpenF1 streaming data
 def race_control_parsed() -> DataFrame:
     snap = snapshot.latest_valid_openf1(config.bronze("openf1_race_control_raw"))
-    return parse.explode_openf1(snap, O.RACE_CONTROL)
+    return parse.with_stream(
+        batch=parse.explode_openf1(snap, O.RACE_CONTROL),
+        endpoint="race_control",
+        record_ddl=O.RACE_CONTROL
+    )
 
 
 def race_control_filtered(df, session) -> DataFrame:
@@ -56,7 +59,7 @@ def race_control_deduped(df) -> DataFrame:
         .withColumn("_s", _try_cast("session_key", "int"))
         .withColumn("_ts", _try_cast("date", "timestamp"))
     )
-    return dedup.dedup_latest(hashed, ["_s", "_ts", "_event_hash"])
+    return dedup.dedup_batch_over_stream(hashed, ["_s", "_ts", "_event_hash"])
 
 
 def race_control_enriched(df) -> DataFrame:
@@ -75,6 +78,14 @@ def race_control_enriched(df) -> DataFrame:
         F.col("_ingested_at").alias("ingested_at"),
         "_load_id"
     )
+
+
+def opening_events(df) -> DataFrame:
+    return df.where(F.col("event_type").isin(OPENING))
+
+
+def closing_events(df) -> DataFrame:
+    return df.where(F.col("event_type").isin(CLOSING))
 
 
 # silver_track_status_interval
@@ -114,6 +125,7 @@ def track_status_intervals(race_control, session) -> DataFrame:
         F.greatest("_o_ingested", F.coalesce("_c_ingested", "_o_ingested")).alias("ingested_at"),
         F.lit(None).cast("string").alias("_load_id")
     )
+
 
 # Adds track_status_name: the most severe interval that overlaps [start, end], else 'Green'
 def track_status(df, intervals, keys, start, end) -> DataFrame:

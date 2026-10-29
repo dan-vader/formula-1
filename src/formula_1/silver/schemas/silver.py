@@ -69,3 +69,24 @@ OVERTAKE_DDL = (
     "openf1_session_key int, overtake_ts timestamp, overtaking_driver_number int, "
     "overtaken_driver_number int, position int, ingested_at timestamp"
 )
+
+QUARANTINE_DDL = (
+    "quarantine_id string, source_table string, record_key string, failed_rules array<string>, "
+    "payload string, source_load_id string, source_ingested_at timestamp"
+)
+
+DQ_METRICS_DDL = (
+    "table_name string, rows_in bigint, rows_out bigint, rows_quarantined bigint, "
+    "rows_deduplicated bigint, rows_filtered_out bigint, rows_warned bigint, "
+    "warnings_by_rule map<string,bigint>, reconciles boolean, measured_at timestamp"
+)
+
+DQ_RECONCILIATION_DDL = (
+    "check_id string, scope_key string, left_name string, left_value bigint, right_name string, "
+    "right_value bigint, difference bigint, passed boolean, measured_at timestamp"
+)
+
+SCHEMA_DRIFT_DDL = (
+    "source_table string, load_id string, unexpected_keys array<string>, "
+    "missing_keys array<string>, has_drift boolean, measured_at timestamp"
+)

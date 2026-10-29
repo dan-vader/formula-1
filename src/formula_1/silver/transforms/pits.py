@@ -13,7 +13,11 @@ KEYS = ["openf1_session_key", "driver_number", "lap_number"]
 # silver_pit_stop
 def pit_parsed() -> DataFrame:
     snap = snapshot.latest_valid_openf1(config.bronze("openf1_pit_raw"))
-    return parse.explode_openf1(snap, O.PIT)
+    return parse.with_stream(
+        batch=parse.explode_openf1(snap, O.PIT),
+        endpoint="pit",
+        record_ddl=O.PIT
+    )
 
 
 def pit_filtered(df, sessions) -> DataFrame:
@@ -31,7 +35,7 @@ def pit_deduped(df) -> DataFrame:
             .withColumn("_d", _try_cast("driver_number", "int"))
             .withColumn("_l", _try_cast("lap_number", "int"))
     )
-    return dedup.dedup_latest(keyed, ["_s", "_d", "_l"])
+    return dedup.dedup_batch_over_stream(keyed, ["_s", "_d", "_l"])
 
 
 # Typed pit columns

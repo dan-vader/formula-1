@@ -10,6 +10,13 @@ OPENF1_TECH = ["_load_id", "_ingested_at", "_year", "_session_key"]
 CSV_PU_SUPPLIER = "ref_pu_supplier"
 CSV_TEAM_LINEAGE = "ref_team_lineage"
 
+QUARANTINED_TABLES = [
+    "silver_finish_status", "silver_driver", "silver_team",
+    "silver_session", "silver_session_driver", "silver_race_result",
+    "silver_jolpica_pit_stop", "silver_race_control", "silver_track_status_interval",
+    "silver_stint", "silver_lap", "silver_pit_stop", "silver_overtake",
+]
+
 
 def _spark() -> SparkSession:
     return SparkSession.getActiveSession() or SparkSession.builder.getOrCreate()

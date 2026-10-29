@@ -18,8 +18,11 @@ factory.register(
 
 factory.register(
     "silver_track_status_interval",
-    parsed=lambda: dp.read("silver_race_control"),
-    enriched=lambda df: race_control.track_status_intervals(df, dp.read("silver_session")),
+    parsed=lambda: race_control.opening_events(dp.read("silver_race_control")),
+    enriched=lambda df: race_control.track_status_intervals(
+        df.unionByName(race_control.closing_events(dp.read("silver_race_control"))),
+        dp.read("silver_session")
+    ),
     keys=["openf1_session_key", "interval_start_utc"],
     ddl=TRACK_STATUS_INTERVAL_DDL,
     comment="Safety car, virtual safety car and red flag intervals"
