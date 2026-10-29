@@ -1,0 +1,1214 @@
+{
+  "datasets": [
+    {
+      "name": "89198b57",
+      "displayName": "race_results",
+      "queryLines": [
+        "SELECT\n",
+        "  s.season,\n",
+        "  s.round,\n",
+        "  s.event_name,\n",
+        "  s.circuit_name,\n",
+        "  s.session_type,\n",
+        "  s.regulation_era,\n",
+        "  d.full_name        AS driver,\n",
+        "  d.name_acronym     AS driver_code,\n",
+        "  t.team_name,\n",
+        "  t.team_colour,\n",
+        "  t.power_unit_supplier,\n",
+        "  fs.status,\n",
+        "  fs.status_category,\n",
+        "  CASE WHEN fs.status_category = 'Retired' THEN 1 ELSE 0 END AS is_retired,\n",
+        "  rc.grid_position,\n",
+        "  rc.classified_position,\n",
+        "  rc.grid_position - rc.classified_position AS positions_gained,\n",
+        "  ABS(rc.grid_position - rc.classified_position) AS positions_changed,\n",
+        "  rc.points,\n",
+        "  rc.overtakes_made\n",
+        "FROM v_race_classification_current rc\n",
+        "JOIN dim_session s        ON rc.session_sk = s.session_sk\n",
+        "JOIN dim_driver d         ON rc.driver_sk = d.driver_sk\n",
+        "JOIN dim_team t           ON rc.team_sk = t.team_sk\n",
+        "JOIN dim_finish_status fs ON rc.finish_status_sk = fs.finish_status_sk"
+      ],
+      "catalog": "dbr_dev_ua5816bd",
+      "schema": "formula_1_gold"
+    },
+    {
+      "name": "45546fb3",
+      "displayName": "q1_circuit_extremes",
+      "queryLines": [
+        "WITH by_circuit AS (\n",
+        "  SELECT\n",
+        "    s.circuit_name,\n",
+        "    COUNT(DISTINCT s.season) AS races,\n",
+        "    ROUND(AVG(ABS(rc.grid_position - rc.classified_position)), 2) AS avg_positions_changed\n",
+        "  FROM v_race_classification_current rc\n",
+        "  JOIN dim_session s ON rc.session_sk = s.session_sk\n",
+        "  WHERE s.session_type = 'Race'\n",
+        "    AND rc.grid_position IS NOT NULL\n",
+        "    AND rc.classified_position IS NOT NULL\n",
+        "  GROUP BY s.circuit_name\n",
+        "  HAVING COUNT(DISTINCT s.season) >= 2\n",
+        "),\n",
+        "ranked AS (\n",
+        "  SELECT *,\n",
+        "    ROW_NUMBER() OVER (ORDER BY avg_positions_changed ASC)  AS rank_low,\n",
+        "    ROW_NUMBER() OVER (ORDER BY avg_positions_changed DESC) AS rank_high\n",
+        "  FROM by_circuit\n",
+        ")\n",
+        "SELECT\n",
+        "  circuit_name,\n",
+        "  races,\n",
+        "  avg_positions_changed,\n",
+        "  CASE WHEN rank_low <= 5 THEN 'Qualifying decides' ELSE 'Race reshuffles' END AS circuit_group\n",
+        "FROM ranked\n",
+        "WHERE rank_low <= 5 OR rank_high <= 5"
+      ],
+      "catalog": "dbr_dev_ua5816bd",
+      "schema": "formula_1_gold"
+    },
+    {
+      "name": "1075a47f",
+      "displayName": "pit_stops",
+      "queryLines": [
+        "SELECT\n",
+        "  s.season,\n",
+        "  s.circuit_name,\n",
+        "  s.session_type,\n",
+        "  t.team_name,\n",
+        "  d.full_name                    AS driver,\n",
+        "  ts.track_status_name,\n",
+        "  ts.is_neutralised,\n",
+        "  f.is_tyre_change,\n",
+        "  f.is_penalty_served,\n",
+        "  p.lap_number,\n",
+        "  p.pit_lane_duration_ms / 1000.0 AS pit_lane_sec,\n",
+        "  p.stop_duration_ms / 1000.0     AS stop_sec,\n",
+        "  p.positions_lost\n",
+        "FROM fact_transaction_pit_stop p\n",
+        "JOIN dim_session s         ON p.session_sk = s.session_sk\n",
+        "JOIN dim_team t            ON p.team_sk = t.team_sk\n",
+        "JOIN dim_driver d          ON p.driver_sk = d.driver_sk\n",
+        "JOIN dim_track_status ts   ON p.track_status_sk = ts.track_status_sk\n",
+        "JOIN dim_pit_stop_flags f  ON p.pit_stop_flags_sk = f.pit_stop_flags_sk"
+      ],
+      "catalog": "dbr_dev_ua5816bd",
+      "schema": "formula_1_gold"
+    },
+    {
+      "name": "380b274f",
+      "displayName": "safety_car_by_race",
+      "queryLines": [
+        "SELECT\n",
+        "  s.season,\n",
+        "  s.circuit_name,\n",
+        "  s.session_type,\n",
+        "  s.event_name,\n",
+        "  MAX(CASE WHEN ts.is_neutralised THEN 1 ELSE 0 END) AS had_safety_car\n",
+        "FROM fact_transaction_lap l\n",
+        "JOIN dim_session s       ON l.session_sk = s.session_sk\n",
+        "JOIN dim_track_status ts ON l.track_status_sk = ts.track_status_sk\n",
+        "GROUP BY s.season, s.circuit_name, s.session_type, s.event_name"
+      ],
+      "catalog": "dbr_dev_ua5816bd",
+      "schema": "formula_1_gold"
+    },
+    {
+      "name": "7402d2ae",
+      "displayName": "tyre_stints",
+      "queryLines": [
+        "SELECT\n",
+        "  s.season,\n",
+        "  s.circuit_name,\n",
+        "  s.session_type,\n",
+        "  t.team_name,\n",
+        "  d.full_name      AS driver,\n",
+        "  tc.compound_name,\n",
+        "  tc.hardness_rank,\n",
+        "  l.stint_number,\n",
+        "  COUNT(*)         AS stint_laps\n",
+        "FROM fact_transaction_lap l\n",
+        "JOIN dim_session s        ON l.session_sk = s.session_sk\n",
+        "JOIN dim_team t           ON l.team_sk = t.team_sk\n",
+        "JOIN dim_driver d         ON l.driver_sk = d.driver_sk\n",
+        "JOIN dim_tyre_compound tc ON l.tyre_compound_sk = tc.tyre_compound_sk\n",
+        "WHERE tc.is_slick\n",
+        "AND l.stint_number IS NOT NULL\n",
+        "GROUP BY ALL"
+      ],
+      "catalog": "dbr_dev_ua5816bd",
+      "schema": "formula_1_gold"
+    },
+    {
+      "name": "1f8ef035",
+      "displayName": "execution_losses",
+      "queryLines": [
+        "WITH clean_laps AS (\n",
+        "  SELECT l.session_sk, l.driver_sk, l.lap_duration_ms\n",
+        "  FROM fact_transaction_lap l\n",
+        "  JOIN dim_lap_flags f     ON l.lap_flags_sk = f.lap_flags_sk\n",
+        "  JOIN dim_track_status ts ON l.track_status_sk = ts.track_status_sk\n",
+        "  WHERE NOT f.is_pit_in_lap\n",
+        "    AND NOT f.is_pit_out_lap\n",
+        "    AND NOT ts.is_neutralised\n",
+        "    AND l.lap_number > 1\n",
+        "    AND l.lap_duration_ms IS NOT NULL\n",
+        "),\n",
+        "pace AS (\n",
+        "  SELECT\n",
+        "    session_sk,\n",
+        "    driver_sk,\n",
+        "    percentile_approx(lap_duration_ms, 0.5) AS median_lap_ms\n",
+        "  FROM clean_laps\n",
+        "  GROUP BY session_sk, driver_sk\n",
+        "  HAVING COUNT(*) >= 10\n",
+        "),\n",
+        "ranked AS (\n",
+        "  SELECT\n",
+        "    p.session_sk,\n",
+        "    p.driver_sk,\n",
+        "    rc.team_sk,\n",
+        "    RANK() OVER (PARTITION BY p.session_sk ORDER BY p.median_lap_ms)          AS pace_rank,\n",
+        "    RANK() OVER (PARTITION BY p.session_sk ORDER BY rc.classified_position)   AS finish_rank\n",
+        "  FROM pace p\n",
+        "  JOIN v_race_classification_current rc\n",
+        "    ON p.session_sk = rc.session_sk AND p.driver_sk = rc.driver_sk\n",
+        "  WHERE rc.classified_position IS NOT NULL\n",
+        ")\n",
+        "SELECT\n",
+        "  s.season,\n",
+        "  s.circuit_name,\n",
+        "  s.session_type,\n",
+        "  t.team_name,\n",
+        "  d.full_name AS driver,\n",
+        "  r.pace_rank,\n",
+        "  r.finish_rank,\n",
+        "  r.finish_rank - r.pace_rank AS positions_lost\n",
+        "FROM ranked r\n",
+        "JOIN dim_session s ON r.session_sk = s.session_sk\n",
+        "JOIN dim_team t    ON r.team_sk = t.team_sk\n",
+        "JOIN dim_driver d  ON r.driver_sk = d.driver_sk"
+      ],
+      "catalog": "dbr_dev_ua5816bd",
+      "schema": "formula_1_gold"
+    }
+  ],
+  "pages": [
+    {
+      "name": "17b9d958",
+      "displayName": "Race Strategy",
+      "layout": [
+        {
+          "widget": {
+            "name": "season",
+            "queries": [
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d2fe71381670bbe56154821d395a_season",
+                "query": {
+                  "datasetName": "89198b57",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d308df6b17ce8598ccb5be3d07f1_season",
+                "query": {
+                  "datasetName": "380b274f",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30a11a3164d8da831215c8a7611_season",
+                "query": {
+                  "datasetName": "7402d2ae",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30afa7d12dbbfe4529720fce596_season",
+                "query": {
+                  "datasetName": "1f8ef035",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d306eddd12b3b8e0b242020c5d0e_season",
+                "query": {
+                  "datasetName": "1075a47f",
+                  "fields": [
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "season_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Season</span>",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "season",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d2fe71381670bbe56154821d395a_season"
+                  },
+                  {
+                    "fieldName": "season",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d308df6b17ce8598ccb5be3d07f1_season"
+                  },
+                  {
+                    "fieldName": "season",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30a11a3164d8da831215c8a7611_season"
+                  },
+                  {
+                    "fieldName": "season",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30afa7d12dbbfe4529720fce596_season"
+                  },
+                  {
+                    "fieldName": "season",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d306eddd12b3b8e0b242020c5d0e_season"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "circuit",
+            "queries": [
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d2fe71381670bbe56154821d395a_circuit_name",
+                "query": {
+                  "datasetName": "89198b57",
+                  "fields": [
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    },
+                    {
+                      "name": "circuit_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d308df6b17ce8598ccb5be3d07f1_circuit_name",
+                "query": {
+                  "datasetName": "380b274f",
+                  "fields": [
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    },
+                    {
+                      "name": "circuit_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30a11a3164d8da831215c8a7611_circuit_name",
+                "query": {
+                  "datasetName": "7402d2ae",
+                  "fields": [
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    },
+                    {
+                      "name": "circuit_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d306eddd12b3b8e0b242020c5d0e_circuit_name",
+                "query": {
+                  "datasetName": "1075a47f",
+                  "fields": [
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    },
+                    {
+                      "name": "circuit_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30afa7d12dbbfe4529720fce596_circuit_name",
+                "query": {
+                  "datasetName": "1f8ef035",
+                  "fields": [
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    },
+                    {
+                      "name": "circuit_name_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Circuit</span>",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-multi-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "circuit_name",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d2fe71381670bbe56154821d395a_circuit_name"
+                  },
+                  {
+                    "fieldName": "circuit_name",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d308df6b17ce8598ccb5be3d07f1_circuit_name"
+                  },
+                  {
+                    "fieldName": "circuit_name",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30a11a3164d8da831215c8a7611_circuit_name"
+                  },
+                  {
+                    "fieldName": "circuit_name",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d306eddd12b3b8e0b242020c5d0e_circuit_name"
+                  },
+                  {
+                    "fieldName": "circuit_name",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30afa7d12dbbfe4529720fce596_circuit_name"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "session",
+            "queries": [
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d2fe71381670bbe56154821d395a_session_type",
+                "query": {
+                  "datasetName": "89198b57",
+                  "fields": [
+                    {
+                      "name": "session_type",
+                      "expression": "`session_type`"
+                    },
+                    {
+                      "name": "session_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d308df6b17ce8598ccb5be3d07f1_session_type",
+                "query": {
+                  "datasetName": "380b274f",
+                  "fields": [
+                    {
+                      "name": "session_type",
+                      "expression": "`session_type`"
+                    },
+                    {
+                      "name": "session_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30a11a3164d8da831215c8a7611_session_type",
+                "query": {
+                  "datasetName": "7402d2ae",
+                  "fields": [
+                    {
+                      "name": "session_type",
+                      "expression": "`session_type`"
+                    },
+                    {
+                      "name": "session_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d306eddd12b3b8e0b242020c5d0e_session_type",
+                "query": {
+                  "datasetName": "1075a47f",
+                  "fields": [
+                    {
+                      "name": "session_type",
+                      "expression": "`session_type`"
+                    },
+                    {
+                      "name": "session_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              },
+              {
+                "name": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30afa7d12dbbfe4529720fce596_session_type",
+                "query": {
+                  "datasetName": "1f8ef035",
+                  "fields": [
+                    {
+                      "name": "session_type",
+                      "expression": "`session_type`"
+                    },
+                    {
+                      "name": "session_type_associativity",
+                      "expression": "COUNT_IF(`associative_filter_predicate_group`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "selection": {
+                "defaultSelection": {
+                  "values": {
+                    "dataType": "STRING",
+                    "values": [
+                      {
+                        "value": "Race"
+                      }
+                    ]
+                  }
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Session</span>",
+                  "fields": []
+                }
+              },
+              "widgetType": "filter-single-select",
+              "encodings": {
+                "fields": [
+                  {
+                    "fieldName": "session_type",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d2fe71381670bbe56154821d395a_session_type"
+                  },
+                  {
+                    "fieldName": "session_type",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d308df6b17ce8598ccb5be3d07f1_session_type"
+                  },
+                  {
+                    "fieldName": "session_type",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30a11a3164d8da831215c8a7611_session_type"
+                  },
+                  {
+                    "fieldName": "session_type",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d306eddd12b3b8e0b242020c5d0e_session_type"
+                  },
+                  {
+                    "fieldName": "session_type",
+                    "queryName": "dashboards/01f1d2fc4d231dc2919d513001603ac6/datasets/01f1d30afa7d12dbbfe4529720fce596_session_type"
+                  }
+                ]
+              }
+            }
+          },
+          "position": {
+            "x": 8,
+            "y": 2,
+            "width": 4,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "avg-positions-changed-per-driver-race",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "45546fb3",
+                  "fields": [
+                    {
+                      "name": "circuit_group",
+                      "expression": "`circuit_group`"
+                    },
+                    {
+                      "name": "avg_positions_changed",
+                      "expression": "`avg_positions_changed`"
+                    },
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Where qualifying decides the race</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg_positions_changed",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "circuit_name",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "color": {
+                  "fieldName": "circuit_group",
+                  "displayName": "Track type",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Qualifying decides",
+                        "color": "#4C6A92"
+                      },
+                      {
+                        "value": "Race reshuffles",
+                        "color": "#E07A5F"
+                      }
+                    ]
+                  }
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 30,
+            "width": 12,
+            "height": 8
+          }
+        },
+        {
+          "widget": {
+            "name": "retirement-rate-by-team",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "89198b57",
+                  "fields": [
+                    {
+                      "name": "count(driver)",
+                      "expression": "COUNT(`driver`)"
+                    },
+                    {
+                      "name": "avg(is_retired)",
+                      "expression": "AVG(`is_retired`)"
+                    },
+                    {
+                      "name": "power_unit_supplier",
+                      "expression": "`power_unit_supplier`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Retirement rate by engine supplier</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "colors": [
+                  "#4C6A92"
+                ]
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(is_retired)",
+                  "format": {
+                    "type": "number-percent",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  },
+                  "displayName": " ",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "power_unit_supplier",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                },
+                "extra": [
+                  {
+                    "fieldName": "count(driver)",
+                    "displayName": " Race starts"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 38,
+            "width": 12,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "pit-crew-speed-consistency-by-team",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1075a47f",
+                  "fields": [
+                    {
+                      "name": "team_name",
+                      "expression": "`team_name`"
+                    },
+                    {
+                      "name": "min(stop_sec)",
+                      "expression": "MIN(`stop_sec`)"
+                    },
+                    {
+                      "name": "q1(stop_sec)",
+                      "expression": "PERCENTILE(`stop_sec`, 0.25)"
+                    },
+                    {
+                      "name": "median(stop_sec)",
+                      "expression": "MEDIAN(`stop_sec`)"
+                    },
+                    {
+                      "name": "q3(stop_sec)",
+                      "expression": "PERCENTILE(`stop_sec`, 0.75)"
+                    },
+                    {
+                      "name": "max(stop_sec)",
+                      "expression": "MAX(`stop_sec`)"
+                    }
+                  ],
+                  "filters": [
+                    {
+                      "expression": "`is_tyre_change` IN (TRUE)"
+                    },
+                    {
+                      "expression": "`is_penalty_served` IN (FALSE)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "showDescription": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Pit crew speed and consistency by team</span>",
+                  "fields": []
+                },
+                "description": {
+                  "value": "<span style=\"font-size: 14px;\">*Normal tyre-change stops, data from the 2024 US GP. Lower box = faster crew, narrower box = more consistent*</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "style": {
+                "fontColor": {
+                  "light": "#11171C"
+                }
+              },
+              "widgetType": "box",
+              "encodings": {
+                "x": {
+                  "fieldName": "team_name",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "whiskerStart": {
+                    "fieldName": "min(stop_sec)"
+                  },
+                  "boxStart": {
+                    "fieldName": "q1(stop_sec)"
+                  },
+                  "boxMid": {
+                    "fieldName": "median(stop_sec)"
+                  },
+                  "boxEnd": {
+                    "fieldName": "q3(stop_sec)"
+                  },
+                  "whiskerEnd": {
+                    "fieldName": "max(stop_sec)"
+                  },
+                  "scale": {
+                    "type": "quantitative",
+                    "domain": {
+                      "type": "custom",
+                      "min": 1,
+                      "max": 6
+                    }
+                  },
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 2
+                    }
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 18,
+            "width": 12,
+            "height": 7
+          }
+        },
+        {
+          "widget": {
+            "name": "safety-car-appearances-by-circuit-and-season",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "380b274f",
+                  "fields": [
+                    {
+                      "name": "sum(had_safety_car)",
+                      "expression": "SUM(`had_safety_car`)"
+                    },
+                    {
+                      "name": "event_name",
+                      "expression": "`event_name`"
+                    },
+                    {
+                      "name": "season",
+                      "expression": "`season`"
+                    },
+                    {
+                      "name": "circuit_name",
+                      "expression": "`circuit_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Safety car appearances by circuit and season</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "heatmap",
+              "encodings": {
+                "x": {
+                  "fieldName": "season",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "circuit_name",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "color": {
+                  "fieldName": "sum(had_safety_car)",
+                  "displayName": "Safety car",
+                  "scale": {
+                    "type": "quantitative",
+                    "colorRamp": {
+                      "mode": "custom-sequential",
+                      "colors": {
+                        "start": "#B7C8DF",
+                        "end": "#4C6A92"
+                      }
+                    }
+                  }
+                },
+                "extra": [
+                  {
+                    "fieldName": "event_name"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 12,
+            "height": 9
+          }
+        },
+        {
+          "widget": {
+            "name": "how-long-tyre-lasts",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "7402d2ae",
+                  "fields": [
+                    {
+                      "name": "compound_name",
+                      "expression": "`compound_name`"
+                    },
+                    {
+                      "name": "avg(stint_laps)",
+                      "expression": "AVG(`stint_laps`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">How long each tyre lasts</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "compound_name",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "categorical"
+                  }
+                },
+                "y": {
+                  "fieldName": "avg(stint_laps)",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "color": {
+                  "fieldName": "compound_name",
+                  "displayName": "Tyre",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "SOFT",
+                        "color": "#E07A5F"
+                      },
+                      {
+                        "value": "MEDIUM",
+                        "color": "#F2CC8F"
+                      },
+                      {
+                        "value": "HARD",
+                        "color": "#B8B8BD"
+                      }
+                    ]
+                  }
+                }
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 6,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "positions-lost-through-execution",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "1f8ef035",
+                  "fields": [
+                    {
+                      "name": "count(driver)",
+                      "expression": "COUNT(`driver`)"
+                    },
+                    {
+                      "name": "avg(positions_lost)",
+                      "expression": "AVG(`positions_lost`)"
+                    },
+                    {
+                      "name": "team_name",
+                      "expression": "`team_name`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "frame": {
+                "showTitle": true,
+                "title": {
+                  "value": "<span style=\"font-size: 24px;\">Positions lost through execution</span>",
+                  "fields": []
+                }
+              },
+              "version": 3,
+              "mark": {
+                "colors": [
+                  "#4C6A92"
+                ]
+              },
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "avg(positions_lost)",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "quantitative"
+                  }
+                },
+                "y": {
+                  "fieldName": "team_name",
+                  "displayName": " ",
+                  "scale": {
+                    "type": "categorical",
+                    "sort": {
+                      "by": "x-reversed"
+                    }
+                  }
+                },
+                "label": {
+                  "show": true
+                },
+                "extra": [
+                  {
+                    "fieldName": "count(driver)",
+                    "displayName": "Race finishes"
+                  }
+                ]
+              },
+              "data": {
+                "queryName": "main_query"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 25,
+            "width": 12,
+            "height": 5
+          }
+        },
+        {
+          "widget": {
+            "name": "0acbf62d",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## Race strategy overview\n",
+                "\n",
+                "For the team strategy analyst: where the team gains and loses results across a race weekend.<br>Use the filters to focus on a season or a circuit. Lap-based charts depend on your access group."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 12,
+            "height": 2
+          }
+        }
+      ],
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layoutVersion": "GRID_V1"
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "canvasBackgroundColor": {
+        "light": "#FAFAFB",
+        "dark": "#1F272D"
+      },
+      "widgetBackgroundColor": {
+        "light": "#FFFFFF",
+        "dark": "#11171C"
+      },
+      "fontColor": {
+        "light": "#11171C",
+        "dark": "#E8ECF0"
+      },
+      "selectionColor": {
+        "light": "#2272B4",
+        "dark": "#8ACAFF"
+      },
+      "visualizationColors": [
+        "#E07A5F",
+        "#4C6A92",
+        "#00A972",
+        "#FF3621",
+        "#8BCAE7",
+        "#AB4057",
+        "#99DDB4",
+        "#FCA4A1",
+        "#919191",
+        "#BF7080"
+      ],
+      "widgetHeaderAlignment": "LEFT"
+    },
+    "applyModeEnabled": false
+  }
+}

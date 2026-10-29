@@ -12,3 +12,10 @@
     arguments:
       columns:
         - compound_name
+- name: G-TYRE-03
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(tyre_compound_sk = -1 OR (is_slick AND hardness_rank BETWEEN 1 AND 3) OR (NOT is_slick AND hardness_rank IS NULL), false)"
+      msg: slick without hardness rank or wet tyre with a rank

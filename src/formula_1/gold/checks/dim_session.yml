@@ -5,3 +5,17 @@
     arguments:
       columns:
         - session_sk
+- name: G-SES-02
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(session_sk = -1 OR (season BETWEEN 1950 AND 2100 AND round BETWEEN 1 AND 30 AND session_type IN ('Race', 'Sprint')), false)"
+      msg: season, round or session type is invalid
+- name: G-SES-03
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(NOT is_inferred, true)"
+      msg: session is known only from race results

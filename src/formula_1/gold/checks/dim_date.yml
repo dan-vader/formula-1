@@ -12,3 +12,17 @@
     arguments:
       columns:
         - full_date
+- name: G-DATE-03
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(date_sk = -1 OR date_sk = CAST(date_format(full_date, 'yyyyMMdd') AS INT), false)"
+      msg: date_sk does not match full_date
+- name: G-DATE-04
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(date_sk = -1 OR quarter = concat('Q', quarter(full_date)), false)"
+      msg: quarter does not match full_date

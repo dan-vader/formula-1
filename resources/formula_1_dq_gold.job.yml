@@ -1,0 +1,39 @@
+resources:
+  jobs:
+    formula_1_dq_gold:
+      name: formula_1_dq_gold
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.gold_schema}
+        - name: results_table
+          default: ${var.catalog}.${var.bronze_schema}.dq_results
+        - name: max_unknown_share
+          default: "0.05"
+
+      tasks:
+        - task_key: run_gold_checks
+          environment_key: default
+          timeout_seconds: 1800
+          spark_python_task:
+            python_file: ../src/dq/run_gold_checks.py
+            parameters:
+              - --catalog
+              - "{{job.parameters.catalog}}"
+              - --schema
+              - "{{job.parameters.schema}}"
+              - --results-table
+              - "{{job.parameters.results_table}}"
+              - --max-unknown-share
+              - "{{job.parameters.max_unknown_share}}"
+              - --run-id
+              - "{{job.run_id}}"
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "5"
+            dependencies:
+              - ../dist/*.whl

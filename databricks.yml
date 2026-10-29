@@ -64,6 +64,10 @@ variables:
     description: Event Hubs namespace that receives the OpenF1 replay
   eventhub_name:
     description: Event Hub (topic) that receives the OpenF1 replay
+  warehouse_id:
+    description: SQL warehouse that runs the dashboard queries
+    lookup:
+      warehouse: "Serverless Starter Warehouse"
 
 targets:
   dev:
