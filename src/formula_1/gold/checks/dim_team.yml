@@ -13,3 +13,17 @@
       columns:
         - constructor_id
         - effective_from
+- name: G-TEAM-03
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(team_sk = -1 OR effective_from <= effective_to, false)"
+      msg: team version ends before it starts
+- name: G-TEAM-04
+  criticality: error
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(team_sk = -1 OR NOT is_current OR effective_to = DATE'9999-12-31', false)"
+      msg: current team version has an end date
