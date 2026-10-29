@@ -12,3 +12,10 @@
     arguments:
       columns:
         - driver_id
+- name: G-DRV-03
+  criticality: warn
+  check:
+    function: sql_expression
+    arguments:
+      expression: "COALESCE(NOT is_inferred, true)"
+      msg: driver is known only from race results
